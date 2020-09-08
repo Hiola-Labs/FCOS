@@ -1,3 +1,4 @@
+# 3D version
 # FCOS: Fully Convolutional One-Stage Object Detection
 
 This project hosts the code for implementing the FCOS algorithm for object detection, as presented in our paper:
@@ -5,16 +6,16 @@ This project hosts the code for implementing the FCOS algorithm for object detec
     FCOS: Fully Convolutional One-Stage Object Detection;
     Zhi Tian, Chunhua Shen, Hao Chen, and Tong He;
     In: Proc. Int. Conf. Computer Vision (ICCV), 2019.
-    arXiv preprint arXiv:1904.01355 
+    arXiv preprint arXiv:1904.01355
 
-The full paper is available at: [https://arxiv.org/abs/1904.01355](https://arxiv.org/abs/1904.01355). 
+The full paper is available at: [https://arxiv.org/abs/1904.01355](https://arxiv.org/abs/1904.01355).
 
 Implementation based on Detectron2 is included in [AdelaiDet](https://github.com/aim-uofa/AdelaiDet#coco-object-detecton-baselines-with-fcos).
 
 **A real-time model with 46FPS and 40.3 in AP on COCO minival is also available [here](https://github.com/aim-uofa/AdelaiDet/blob/master/configs/FCOS-Detection/README.md#fcos-real-time-models).**
 
 ## Highlights
-- **Totally anchor-free:**  FCOS completely avoids the complicated computation related to anchor boxes and all hyper-parameters of anchor boxes.   
+- **Totally anchor-free:**  FCOS completely avoids the complicated computation related to anchor boxes and all hyper-parameters of anchor boxes.
 - **Better performance:** The very simple one-stage detector achieves much better performance (38.7 vs. 36.8 in AP with ResNet-50) than Faster R-CNN. Check out more models and experimental results [here](#models).
 - **Faster training and testing:** With the same hardwares and backbone ResNet-50-FPN, FCOS also requires less training hours (6.5h vs. 8.8h) than Faster R-CNN. FCOS also takes 12ms less inference time per image than Faster R-CNN (44ms vs. 56ms).
 - **State-of-the-art performance:** Our best model based on ResNeXt-64x4d-101 and deformable convolutions achieves **49.0%** in AP on COCO test-dev (with multi-scale testing).
@@ -31,20 +32,20 @@ Implementation based on Detectron2 is included in [AdelaiDet](https://github.com
 
 ## Required hardware
 We use 8 Nvidia V100 GPUs. \
-But 4 1080Ti GPUs can also train a fully-fledged ResNet-50-FPN based FCOS since FCOS is memory-efficient.  
+But 4 1080Ti GPUs can also train a fully-fledged ResNet-50-FPN based FCOS since FCOS is memory-efficient.
 
 ## Installation
-#### Testing-only installation 
+#### Testing-only installation
 For users who only want to use FCOS as an object detector in their projects, they can install it by pip. To do so, run:
 ```
 pip install torch  # install pytorch if you do not have it
 pip install git+https://github.com/tianzhi0549/FCOS.git
-# run this command line for a demo 
+# run this command line for a demo
 fcos https://github.com/tianzhi0549/FCOS/raw/master/demo/images/COCO_val2014_000000000885.jpg
 ```
 Please check out [here](fcos/bin/fcos) for the interface usage.
 
-#### For a complete installation 
+#### For a complete installation
 This FCOS implementation is based on [maskrcnn-benchmark](https://github.com/facebookresearch/maskrcnn-benchmark). Therefore the installation is the same as original maskrcnn-benchmark.
 
 Please check [INSTALL.md](INSTALL.md) for installation instructions.
@@ -52,7 +53,7 @@ You may also want to see the original [README.md](MASKRCNN_README.md) of maskrcn
 
 ## A quick demo
 Once the installation is done, you can follow the below steps to run a quick demo.
-    
+
     # assume that you are under the root directory of this project,
     # and you have activated your virtual environment if needed.
     wget https://cloudstor.aarnet.edu.au/plus/s/ZSAqNJB96hA71Yf/download -O FCOS_imprv_R_50_FPN_1x.pth
@@ -65,7 +66,7 @@ The inference command line on coco minival split:
     python tools/test_net.py \
         --config-file configs/fcos/fcos_imprv_R_50_FPN_1x.yaml \
         MODEL.WEIGHT FCOS_imprv_R_50_FPN_1x.pth \
-        TEST.IMS_PER_BATCH 4    
+        TEST.IMS_PER_BATCH 4
 
 Please note that:
 1) If your model's name is different, please replace `FCOS_imprv_R_50_FPN_1x.pth` with your own.
@@ -128,13 +129,13 @@ The following command line will train FCOS_imprv_R_50_FPN_1x on 8 GPUs with Sync
         --config-file configs/fcos/fcos_imprv_R_50_FPN_1x.yaml \
         DATALOADER.NUM_WORKERS 2 \
         OUTPUT_DIR training_dir/fcos_imprv_R_50_FPN_1x
-        
+
 Note that:
 1) If you want to use fewer GPUs, please change `--nproc_per_node` to the number of GPUs. No other settings need to be changed. The total batch size does not depends on `nproc_per_node`. If you want to change the total batch size, please change `SOLVER.IMS_PER_BATCH` in [configs/fcos/fcos_R_50_FPN_1x.yaml](configs/fcos/fcos_R_50_FPN_1x.yaml).
 2) The models will be saved into `OUTPUT_DIR`.
 3) If you want to train FCOS with other backbones, please change `--config-file`.
 4) If you want to train FCOS on your own dataset, please follow this instruction [#54](https://github.com/tianzhi0549/FCOS/issues/54#issuecomment-497558687).
-5) Now, training with 8 GPUs and 4 GPUs can have the same performance. Previous performance gap was because we did not synchronize `num_pos` between GPUs when computing loss. 
+5) Now, training with 8 GPUs and 4 GPUs can have the same performance. Previous performance gap was because we did not synchronize `num_pos` between GPUs when computing loss.
 
 ## ONNX
 Please refer to the directory [onnx](onnx) for an example of exporting the model to ONNX.
@@ -156,8 +157,8 @@ Please consider citing our paper in your publications if the project helps your 
 ```
 
 # Acknowledgments
-We would like to thank [@yqyao](https://github.com/yqyao) for the tricks of center sampling and GIoU.  We also thank [@bearcatt](https://github.com/bearcatt) for his suggestion of positioning the center-ness branch with box regression (refer to [#89](https://github.com/tianzhi0549/FCOS/issues/89#issuecomment-516877042)).    
+We would like to thank [@yqyao](https://github.com/yqyao) for the tricks of center sampling and GIoU.  We also thank [@bearcatt](https://github.com/bearcatt) for his suggestion of positioning the center-ness branch with box regression (refer to [#89](https://github.com/tianzhi0549/FCOS/issues/89#issuecomment-516877042)).
 
 ## License
 
-For academic use, this project is licensed under the 2-clause BSD License - see the LICENSE file for details. For commercial use, please contact the authors. 
+For academic use, this project is licensed under the 2-clause BSD License - see the LICENSE file for details. For commercial use, please contact the authors.
