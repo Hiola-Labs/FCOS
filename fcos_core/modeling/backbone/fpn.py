@@ -32,12 +32,14 @@ class FPN(nn.Module):
 
             if in_channels == 0:
                 continue
+            #modify 3d (conv_block)
             inner_block_module = conv_block(in_channels, out_channels, 1)
             layer_block_module = conv_block(out_channels, out_channels, 3, 1)
             self.add_module(inner_block, inner_block_module)
             self.add_module(layer_block, layer_block_module)
             self.inner_blocks.append(inner_block)
             self.layer_blocks.append(layer_block)
+        #modify 3d
         self.top_blocks = top_blocks
 
     def forward(self, x):
@@ -59,7 +61,7 @@ class FPN(nn.Module):
             # inner_top_down = F.interpolate(last_inner, scale_factor=2, mode="nearest")
             inner_lateral = getattr(self, inner_block)(feature)
             inner_top_down = F.interpolate(
-                last_inner, size=(int(inner_lateral.shape[-2]), int(inner_lateral.shape[-1])),
+                last_inner, size=tuple(inner_lateral.shape[2:]),
                 mode='nearest'
             )
             last_inner = inner_lateral + inner_top_down
@@ -77,6 +79,8 @@ class FPN(nn.Module):
 
 class LastLevelMaxPool(nn.Module):
     def forward(self, x):
+        if len(x.size())==5:
+            return [F.max_pool3d(x, 1, 2, 0)]
         return [F.max_pool2d(x, 1, 2, 0)]
 
 
@@ -84,10 +88,14 @@ class LastLevelP6P7(nn.Module):
     """
     This module is used in RetinaNet to generate extra layers, P6 and P7.
     """
-    def __init__(self, in_channels, out_channels):
+    def __init__(self, in_channels, out_channels, is_3d):
         super(LastLevelP6P7, self).__init__()
-        self.p6 = nn.Conv2d(in_channels, out_channels, 3, 2, 1)
-        self.p7 = nn.Conv2d(out_channels, out_channels, 3, 2, 1)
+        if is_3d:
+            self.p6 = nn.Conv3d(in_channels, out_channels, 3, 2, 1)
+            self.p7 = nn.Conv3d(out_channels, out_channels, 3, 2, 1)
+        else:
+            self.p6 = nn.Conv2d(in_channels, out_channels, 3, 2, 1)
+            self.p7 = nn.Conv2d(out_channels, out_channels, 3, 2, 1)
         for module in [self.p6, self.p7]:
             nn.init.kaiming_uniform_(module.weight, a=1)
             nn.init.constant_(module.bias, 0)

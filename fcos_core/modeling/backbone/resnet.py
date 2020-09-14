@@ -22,8 +22,8 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from fcos_core.layers import FrozenBatchNorm2d
-from fcos_core.layers import Conv2d
+from fcos_core.layers import FrozenBatchNorm2d, FrozenBatchNorm3d
+from fcos_core.layers import Conv2d, Conv3d
 from fcos_core.layers import DFConv2d
 from fcos_core.modeling.make_layers import group_norm
 from fcos_core.utils.registry import Registry
@@ -121,6 +121,7 @@ class ResNet(nn.Module):
                     "stage_with_dcn": stage_with_dcn,
                     "with_modulated_dcn": cfg.MODEL.RESNETS.WITH_MODULATED_DCN,
                     "deformable_groups": cfg.MODEL.RESNETS.DEFORMABLE_GROUPS,
+                    "is_3d": cfg.MODEL.IS_3D
                 }
             )
             in_channels = out_channels
@@ -250,12 +251,12 @@ class Bottleneck(nn.Module):
         dcn_config
     ):
         super(Bottleneck, self).__init__()
-
+        conv_module = (Conv3d if dcn_config['is_3d'] else Conv2d)
         self.downsample = None
         if in_channels != out_channels:
             down_stride = stride if dilation == 1 else 1
             self.downsample = nn.Sequential(
-                Conv2d(
+                conv_module(
                     in_channels, out_channels,
                     kernel_size=1, stride=down_stride, bias=False
                 ),
@@ -263,7 +264,7 @@ class Bottleneck(nn.Module):
             )
             for modules in [self.downsample,]:
                 for l in modules.modules():
-                    if isinstance(l, Conv2d):
+                    if isinstance(l, conv_module):
                         nn.init.kaiming_uniform_(l.weight, a=1)
 
         if dilation > 1:
@@ -274,7 +275,8 @@ class Bottleneck(nn.Module):
         # stride in the 3x3 conv
         stride_1x1, stride_3x3 = (stride, 1) if stride_in_1x1 else (1, stride)
 
-        self.conv1 = Conv2d(
+
+        self.conv1 = conv_module(
             in_channels,
             bottleneck_channels,
             kernel_size=1,
@@ -285,6 +287,7 @@ class Bottleneck(nn.Module):
         # TODO: specify init for the above
         with_dcn = dcn_config.get("stage_with_dcn", False)
         if with_dcn:
+            assert dcn_config['is_3d']==0, 'stage_with_dcn 3D is not implemented'
             deformable_groups = dcn_config.get("deformable_groups", 1)
             with_modulated_dcn = dcn_config.get("with_modulated_dcn", False)
             self.conv2 = DFConv2d(
@@ -299,7 +302,7 @@ class Bottleneck(nn.Module):
                 bias=False
             )
         else:
-            self.conv2 = Conv2d(
+            self.conv2 = conv_module(
                 bottleneck_channels,
                 bottleneck_channels,
                 kernel_size=3,
@@ -313,7 +316,7 @@ class Bottleneck(nn.Module):
 
         self.bn2 = norm_func(bottleneck_channels)
 
-        self.conv3 = Conv2d(
+        self.conv3 = conv_module(
             bottleneck_channels, out_channels, kernel_size=1, bias=False
         )
         self.bn3 = norm_func(out_channels)
@@ -323,7 +326,7 @@ class Bottleneck(nn.Module):
 
     def forward(self, x):
         identity = x
-
+        #modify 3D
         out = self.conv1(x)
         out = self.bn1(out)
         out = F.relu_(out)
@@ -349,11 +352,18 @@ class BaseStem(nn.Module):
         super(BaseStem, self).__init__()
 
         out_channels = cfg.MODEL.RESNETS.STEM_OUT_CHANNELS
-
-        self.conv1 = Conv2d(
-            3, out_channels, kernel_size=7, stride=2, padding=3, bias=False
-        )
-        self.bn1 = norm_func(out_channels)
+        if cfg.MODEL.IS_3D:
+            self.conv1 = Conv3d(
+                1, out_channels, kernel_size=7, stride=2, padding=3, bias=False
+            )
+            self.bn1 = norm_func(out_channels)
+            self.max_pool_func = F.max_pool3d
+        else:
+            self.conv1 = Conv2d(
+                3, out_channels, kernel_size=7, stride=2, padding=3, bias=False
+            )
+            self.bn1 = norm_func(out_channels)
+            self.max_pool_func = F.max_pool2d
 
         for l in [self.conv1,]:
             nn.init.kaiming_uniform_(l.weight, a=1)
@@ -362,7 +372,7 @@ class BaseStem(nn.Module):
         x = self.conv1(x)
         x = self.bn1(x)
         x = F.relu_(x)
-        x = F.max_pool2d(x, kernel_size=3, stride=2, padding=1)
+        x = self.max_pool_func(x, kernel_size=3, stride=2, padding=1)
         return x
 
 
@@ -378,6 +388,10 @@ class BottleneckWithFixedBatchNorm(Bottleneck):
         dilation=1,
         dcn_config=None
     ):
+        if dcn_config['is_3d']:
+            norm_func = FrozenBatchNorm3d
+        else:
+            norm_func = FrozenBatchNorm2d
         super(BottleneckWithFixedBatchNorm, self).__init__(
             in_channels=in_channels,
             bottleneck_channels=bottleneck_channels,
@@ -386,16 +400,21 @@ class BottleneckWithFixedBatchNorm(Bottleneck):
             stride_in_1x1=stride_in_1x1,
             stride=stride,
             dilation=dilation,
-            norm_func=FrozenBatchNorm2d,
+            norm_func=norm_func,
             dcn_config=dcn_config
         )
 
 
 class StemWithFixedBatchNorm(BaseStem):
     def __init__(self, cfg):
-        super(StemWithFixedBatchNorm, self).__init__(
-            cfg, norm_func=FrozenBatchNorm2d
-        )
+        if cfg.MODEL.IS_3D:
+            super(StemWithFixedBatchNorm, self).__init__(
+                cfg, norm_func=FrozenBatchNorm3d
+            )
+        else:
+            super(StemWithFixedBatchNorm, self).__init__(
+                cfg, norm_func=FrozenBatchNorm2d
+            )
 
 
 class BottleneckWithGN(Bottleneck):

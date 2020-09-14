@@ -7,9 +7,8 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 from fcos_core.config import cfg
-from fcos_core.layers import Conv2d
+from fcos_core.layers import Conv2d, Conv3d
 from fcos_core.modeling.poolers import Pooler
-
 
 def get_group_gn(dim, dim_per_gp, num_groups):
     """get number of groups used by GroupNorm, based on number of channels."""
@@ -34,29 +33,29 @@ def group_norm(out_channels, affine=True, divisor=1):
     num_groups = cfg.MODEL.GROUP_NORM.NUM_GROUPS // divisor
     eps = cfg.MODEL.GROUP_NORM.EPSILON # default: 1e-5
     return torch.nn.GroupNorm(
-        get_group_gn(out_channels, dim_per_gp, num_groups), 
-        out_channels, 
-        eps, 
+        get_group_gn(out_channels, dim_per_gp, num_groups),
+        out_channels,
+        eps,
         affine
     )
 
 
 def make_conv3x3(
-    in_channels, 
-    out_channels, 
-    dilation=1, 
-    stride=1, 
+    in_channels,
+    out_channels,
+    dilation=1,
+    stride=1,
     use_gn=False,
     use_relu=False,
     kaiming_init=True
 ):
     conv = Conv2d(
-        in_channels, 
-        out_channels, 
-        kernel_size=3, 
-        stride=stride, 
-        padding=dilation, 
-        dilation=dilation, 
+        in_channels,
+        out_channels,
+        kernel_size=3,
+        stride=stride,
+        padding=dilation,
+        dilation=dilation,
         bias=False if use_gn else True
     )
     if kaiming_init:
@@ -92,19 +91,32 @@ def make_fc(dim_in, hidden_dim, use_gn=False):
     return fc
 
 
-def conv_with_kaiming_uniform(use_gn=False, use_relu=False):
+def conv_with_kaiming_uniform(use_gn=False, use_relu=False, is_3d=False):
     def make_conv(
         in_channels, out_channels, kernel_size, stride=1, dilation=1
     ):
-        conv = Conv2d(
-            in_channels, 
-            out_channels, 
-            kernel_size=kernel_size, 
-            stride=stride, 
-            padding=dilation * (kernel_size - 1) // 2, 
-            dilation=dilation, 
-            bias=False if use_gn else True
-        )
+        if is_3d:
+            #modify 3D
+            conv = Conv3d(
+                in_channels,
+                out_channels,
+                kernel_size=kernel_size,
+                stride=stride,
+                padding=dilation * (kernel_size - 1) // 2,
+                dilation=dilation,
+                bias=False if use_gn else True
+            )
+
+        else:
+            conv = Conv2d(
+                in_channels,
+                out_channels,
+                kernel_size=kernel_size,
+                stride=stride,
+                padding=dilation * (kernel_size - 1) // 2,
+                dilation=dilation,
+                bias=False if use_gn else True
+            )
         # Caffe2 implementation uses XavierFill, which in fact
         # corresponds to kaiming_uniform_ in PyTorch
         nn.init.kaiming_uniform_(conv.weight, a=1)

@@ -71,6 +71,7 @@ def build_roi_heads(cfg, in_channels):
 
     # combine individual heads in a single module
     if roi_heads:
+        assert not cfg.MODEL.IS_3D, '3D model not implemented'
         roi_heads = CombinedROIHeads(cfg, roi_heads)
 
     return roi_heads

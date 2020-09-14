@@ -37,7 +37,7 @@ def build_resnet_fpn_backbone(cfg):
         ],
         out_channels=out_channels,
         conv_block=conv_with_kaiming_uniform(
-            cfg.MODEL.FPN.USE_GN, cfg.MODEL.FPN.USE_RELU
+            cfg.MODEL.FPN.USE_GN, cfg.MODEL.FPN.USE_RELU, is_3d=(cfg.MODEL.IS_3D==1)
         ),
         top_blocks=fpn_module.LastLevelMaxPool(),
     )
@@ -54,6 +54,10 @@ def build_resnet_fpn_p3p7_backbone(cfg):
     out_channels = cfg.MODEL.RESNETS.BACKBONE_OUT_CHANNELS
     in_channels_p6p7 = in_channels_stage2 * 8 if cfg.MODEL.RETINANET.USE_C5 \
         else out_channels
+    conv_block = conv_with_kaiming_uniform(
+        cfg.MODEL.FPN.USE_GN, cfg.MODEL.FPN.USE_RELU, is_3d=(cfg.MODEL.IS_3D==1)
+    )
+    #modify to 3D
     fpn = fpn_module.FPN(
         in_channels_list=[
             0,
@@ -62,10 +66,8 @@ def build_resnet_fpn_p3p7_backbone(cfg):
             in_channels_stage2 * 8,
         ],
         out_channels=out_channels,
-        conv_block=conv_with_kaiming_uniform(
-            cfg.MODEL.FPN.USE_GN, cfg.MODEL.FPN.USE_RELU
-        ),
-        top_blocks=fpn_module.LastLevelP6P7(in_channels_p6p7, out_channels),
+        conv_block=conv_block,
+        top_blocks=fpn_module.LastLevelP6P7(in_channels_p6p7, out_channels, is_3d=(cfg.MODEL.IS_3D==1)),
     )
     model = nn.Sequential(OrderedDict([("body", body), ("fpn", fpn)]))
     model.out_channels = out_channels
@@ -74,6 +76,7 @@ def build_resnet_fpn_p3p7_backbone(cfg):
 
 @registry.BACKBONES.register("MNV2-FPN-RETINANET")
 def build_mnv2_fpn_backbone(cfg):
+    assert cfg.MODEL.IS_3D==0, 'MobileNet 3D not implement'
     body = mobilenet.MobileNetV2(cfg)
     in_channels_stage2 = body.return_features_num_channels
     out_channels = cfg.MODEL.RESNETS.BACKBONE_OUT_CHANNELS
@@ -86,7 +89,7 @@ def build_mnv2_fpn_backbone(cfg):
         ],
         out_channels=out_channels,
         conv_block=conv_with_kaiming_uniform(
-            cfg.MODEL.FPN.USE_GN, cfg.MODEL.FPN.USE_RELU
+            cfg.MODEL.FPN.USE_GN, cfg.MODEL.FPN.USE_RELU, is_3d=(cfg.MODEL.IS_3D==1)
         ),
         top_blocks=fpn_module.LastLevelP6P7(out_channels, out_channels),
     )

@@ -8,8 +8,9 @@ import torch.distributed as dist
 
 from fcos_core.utils.comm import get_world_size, is_pytorch_1_1_0_or_later
 from fcos_core.utils.metric_logger import MetricLogger
-
-
+import numpy as np
+from time import gmtime, strftime
+from tqdm import tqdm
 def reduce_loss_dict(loss_dict):
     """
     Reduce the loss dictionary from all processes so that process with rank
@@ -34,7 +35,6 @@ def reduce_loss_dict(loss_dict):
         reduced_losses = {k: v for k, v in zip(loss_names, all_losses)}
     return reduced_losses
 
-
 def do_train(
     model,
     data_loader,
@@ -46,6 +46,8 @@ def do_train(
     arguments,
 ):
     logger = logging.getLogger("fcos_core.trainer")
+    handler = logging.FileHandler("training_log_{}.log".format(strftime("%Y_%m_%d_%H_%M_%S", gmtime())))
+    logger.addHandler(handler)
     logger.info("Start training")
     meters = MetricLogger(delimiter="  ")
     max_iter = len(data_loader)
@@ -54,7 +56,10 @@ def do_train(
     start_training_time = time.time()
     end = time.time()
     pytorch_1_1_0_or_later = is_pytorch_1_1_0_or_later()
-    for iteration, (images, targets, _) in enumerate(data_loader, start_iter):
+    for iteration, batch_data in tqdm(enumerate(data_loader, start_iter)):
+        images = batch_data[0]
+        targets = batch_data[1]
+
         data_time = time.time() - end
         iteration = iteration + 1
         arguments["iteration"] = iteration
@@ -64,10 +69,10 @@ def do_train(
             scheduler.step()
 
         images = images.to(device)
+        #from visualize import visualize
+        #visualize(images.tensors[0].cpu().numpy()[0][:, :30, :].astype(np.uint8))
         targets = [target.to(device) for target in targets]
-
         loss_dict = model(images, targets)
-
         losses = sum(loss for loss in loss_dict.values())
 
         # reduce losses over all GPUs for logging purposes

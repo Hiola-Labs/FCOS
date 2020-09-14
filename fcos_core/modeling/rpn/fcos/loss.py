@@ -52,21 +52,39 @@ class FCOSLossComputation(object):
         self.box_reg_loss_func = IOULoss(self.iou_loss_type)
         self.centerness_loss_func = nn.BCEWithLogitsLoss(reduction="sum")
 
-    def get_sample_region(self, gt, strides, num_points_per, gt_xs, gt_ys, radius=1.0):
+    def get_sample_region(self, gt, strides, num_points_per, gt_xyz, radius=1.0):
         '''
         This code is from
         https://github.com/yqyao/FCOS_PLUS/blob/0d20ba34ccc316650d8c30febb2eb40cb6eaae37/
         maskrcnn_benchmark/modeling/rpn/fcos/loss.py#L42
         '''
+
         num_gts = gt.shape[0]
-        K = len(gt_xs)
-        gt = gt[None].expand(K, num_gts, 4)
-        center_x = (gt[..., 0] + gt[..., 2]) / 2
-        center_y = (gt[..., 1] + gt[..., 3]) / 2
-        center_gt = gt.new_zeros(gt.shape)
+        K = len(gt_xyz[0])
+        gt = gt[None].expand(K, num_gts, gt.shape[-1])
+
+        is_3D = False
+        if gt.shape[-1] == 6:
+            is_3D = True
+
+        if is_3D:
+            gt_xs, gt_ys, gt_zs = gt_xyz
+            center_x = (gt[..., 0] + gt[..., 3]) / 2
+        else:
+            gt_xs, gt_ys = gt_xyz
+            center_x = (gt[..., 0] + gt[..., 2]) / 2
         # no gt
         if center_x[..., 0].sum() == 0:
             return gt_xs.new_zeros(gt_xs.shape, dtype=torch.uint8)
+
+        if is_3D:
+            center_y = (gt[..., 1] + gt[..., 4]) / 2
+            center_z = (gt[..., 2] + gt[..., 5]) / 2
+        else:
+            center_y = (gt[..., 1] + gt[..., 3]) / 2
+
+        center_gt = gt.new_zeros(gt.shape)
+
         beg = 0
         for level, n_p in enumerate(num_points_per):
             end = beg + n_p
@@ -76,26 +94,64 @@ class FCOSLossComputation(object):
             xmax = center_x[beg:end] + stride
             ymax = center_y[beg:end] + stride
             # limit sample region in gt
-            center_gt[beg:end, :, 0] = torch.where(
-                xmin > gt[beg:end, :, 0], xmin, gt[beg:end, :, 0]
-            )
-            center_gt[beg:end, :, 1] = torch.where(
-                ymin > gt[beg:end, :, 1], ymin, gt[beg:end, :, 1]
-            )
-            center_gt[beg:end, :, 2] = torch.where(
-                xmax > gt[beg:end, :, 2],
-                gt[beg:end, :, 2], xmax
-            )
-            center_gt[beg:end, :, 3] = torch.where(
-                ymax > gt[beg:end, :, 3],
-                gt[beg:end, :, 3], ymax
-            )
+            if is_3D:
+                zmin = center_z[beg:end] - stride
+                zmax = center_z[beg:end] + stride
+
+                center_gt[beg:end, :, 0] = torch.where(
+                    xmin > gt[beg:end, :, 0], xmin, gt[beg:end, :, 0]
+                )
+                center_gt[beg:end, :, 1] = torch.where(
+                    ymin > gt[beg:end, :, 1], ymin, gt[beg:end, :, 1]
+                )
+                center_gt[beg:end, :, 2] = torch.where(
+                    zmin > gt[beg:end, :, 2], zmin, gt[beg:end, :, 2]
+                )
+
+                center_gt[beg:end, :, 3] = torch.where(
+                    xmax > gt[beg:end, :, 3],
+                    gt[beg:end, :, 3], xmax
+                )
+                center_gt[beg:end, :, 4] = torch.where(
+                    ymax > gt[beg:end, :, 4],
+                    gt[beg:end, :, 4], ymax
+                )
+                center_gt[beg:end, :, 5] = torch.where(
+                    zmax > gt[beg:end, :, 5],
+                    gt[beg:end, :, 5], zmax
+                )
+            else:
+                center_gt[beg:end, :, 0] = torch.where(
+                    xmin > gt[beg:end, :, 0], xmin, gt[beg:end, :, 0]
+                )
+                center_gt[beg:end, :, 1] = torch.where(
+                    ymin > gt[beg:end, :, 1], ymin, gt[beg:end, :, 1]
+                )
+                center_gt[beg:end, :, 2] = torch.where(
+                    xmax > gt[beg:end, :, 2],
+                    gt[beg:end, :, 2], xmax
+                )
+                center_gt[beg:end, :, 3] = torch.where(
+                    ymax > gt[beg:end, :, 3],
+                    gt[beg:end, :, 3], ymax
+                )
             beg = end
-        left = gt_xs[:, None] - center_gt[..., 0]
-        right = center_gt[..., 2] - gt_xs[:, None]
-        top = gt_ys[:, None] - center_gt[..., 1]
-        bottom = center_gt[..., 3] - gt_ys[:, None]
-        center_bbox = torch.stack((left, top, right, bottom), -1)
+        if is_3D:
+            left = gt_xs[:, None] - center_gt[..., 0]
+            right = center_gt[..., 3] - gt_xs[:, None]
+            top = gt_ys[:, None] - center_gt[..., 1]
+            bottom = center_gt[..., 4] - gt_ys[:, None]
+            front = gt_zs[:, None] - center_gt[..., 2]
+            behind = center_gt[..., 5] - gt_zs[:, None]
+            center_bbox = torch.stack((left, top, front, right, bottom, behind), -1)
+        else:
+            left = gt_xs[:, None] - center_gt[..., 0]
+            right = center_gt[..., 2] - gt_xs[:, None]
+            top = gt_ys[:, None] - center_gt[..., 1]
+            bottom = center_gt[..., 3] - gt_ys[:, None]
+            center_bbox = torch.stack((left, top, right, bottom), -1)
+
+
         inside_gt_bbox_mask = center_bbox.min(-1)[0] > 0
         return inside_gt_bbox_mask
 
@@ -149,32 +205,46 @@ class FCOSLossComputation(object):
         labels = []
         reg_targets = []
         xs, ys = locations[:, 0], locations[:, 1]
+        is_3D = False
+        if len(locations[0]) == 3:
+            zs = locations[:, 2]
+            is_3D = True
 
         for im_i in range(len(targets)):
             targets_per_im = targets[im_i]
-            assert targets_per_im.mode == "xyxy"
+            assert targets_per_im.mode == "xyxy" or targets_per_im.mode == "xyzxyz"
             bboxes = targets_per_im.bbox
             labels_per_im = targets_per_im.get_field("labels")
             area = targets_per_im.area()
+            if is_3D:
+                l = xs[:, None] - bboxes[:, 0][None]
+                t = ys[:, None] - bboxes[:, 1][None]
+                front = zs[:, None] - bboxes[:, 2][None]
+                r = bboxes[:, 3][None] - xs[:, None]
+                b = bboxes[:, 4][None] - ys[:, None]
+                behind = bboxes[:, 5][None] - zs[:, None]
+                reg_targets_per_im = torch.stack([l, t, front, r, b, behind], dim=2)
+            else:
+                l = xs[:, None] - bboxes[:, 0][None]
+                t = ys[:, None] - bboxes[:, 1][None]
+                r = bboxes[:, 2][None] - xs[:, None]
+                b = bboxes[:, 3][None] - ys[:, None]
+                reg_targets_per_im = torch.stack([l, t, r, b], dim=2)
 
-            l = xs[:, None] - bboxes[:, 0][None]
-            t = ys[:, None] - bboxes[:, 1][None]
-            r = bboxes[:, 2][None] - xs[:, None]
-            b = bboxes[:, 3][None] - ys[:, None]
-            reg_targets_per_im = torch.stack([l, t, r, b], dim=2)
-
+            location_tuple = xs, ys
+            if is_3D:
+                location_tuple = xs, ys, zs
             if self.center_sampling_radius > 0:
                 is_in_boxes = self.get_sample_region(
                     bboxes,
                     self.fpn_strides,
                     self.num_points_per_level,
-                    xs, ys,
+                    location_tuple,
                     radius=self.center_sampling_radius
                 )
             else:
                 # no center sampling, it will use all the locations within a ground-truth box
                 is_in_boxes = reg_targets_per_im.min(dim=2)[0] > 0
-
             max_reg_targets_per_im = reg_targets_per_im.max(dim=2)[0]
             # limit the regression range for each location
             is_cared_in_the_level = \
@@ -199,6 +269,15 @@ class FCOSLossComputation(object):
         return labels, reg_targets
 
     def compute_centerness_targets(self, reg_targets):
+        if (reg_targets.size(1)==6):
+            #3D
+            left_right = reg_targets[:, [0, 3]]
+            top_bottom = reg_targets[:, [1, 4]]
+            front_behind = reg_targets[:, [2, 5]]
+            centerness = (left_right.min(dim=-1)[0] / left_right.max(dim=-1)[0]) * \
+                        (top_bottom.min(dim=-1)[0] / top_bottom.max(dim=-1)[0]) * \
+                        (front_behind.min(dim=-1)[0] / front_behind.max(dim=-1)[0])
+            return centerness.pow(1/3)
         left_right = reg_targets[:, [0, 2]]
         top_bottom = reg_targets[:, [1, 3]]
         centerness = (left_right.min(dim=-1)[0] / left_right.max(dim=-1)[0]) * \
@@ -222,18 +301,30 @@ class FCOSLossComputation(object):
         N = box_cls[0].size(0)
         num_classes = box_cls[0].size(1)
         labels, reg_targets = self.prepare_targets(locations, targets)
-
+        #if num_classes == 1:
+        #    labels = [_ + 1 for _ in labels]
         box_cls_flatten = []
         box_regression_flatten = []
         centerness_flatten = []
         labels_flatten = []
         reg_targets_flatten = []
-        for l in range(len(labels)):
-            box_cls_flatten.append(box_cls[l].permute(0, 2, 3, 1).reshape(-1, num_classes))
-            box_regression_flatten.append(box_regression[l].permute(0, 2, 3, 1).reshape(-1, 4))
-            labels_flatten.append(labels[l].reshape(-1))
-            reg_targets_flatten.append(reg_targets[l].reshape(-1, 4))
-            centerness_flatten.append(centerness[l].reshape(-1))
+        is_3D = False
+        if len(box_cls[0].shape) == 5:
+            is_3D = True
+        if is_3D:
+            for l in range(len(labels)):
+                box_cls_flatten.append(box_cls[l].permute(0, 2, 3, 4, 1).reshape(-1, num_classes))
+                box_regression_flatten.append(box_regression[l].permute(0, 2, 3, 4, 1).reshape(-1, 6))
+                labels_flatten.append(labels[l].reshape(-1))
+                reg_targets_flatten.append(reg_targets[l].reshape(-1, 6))
+                centerness_flatten.append(centerness[l].reshape(-1))
+        else:
+            for l in range(len(labels)):
+                box_cls_flatten.append(box_cls[l].permute(0, 2, 3, 1).reshape(-1, num_classes))
+                box_regression_flatten.append(box_regression[l].permute(0, 2, 3, 1).reshape(-1, 4))
+                labels_flatten.append(labels[l].reshape(-1))
+                reg_targets_flatten.append(reg_targets[l].reshape(-1, 4))
+                centerness_flatten.append(centerness[l].reshape(-1))
 
         box_cls_flatten = torch.cat(box_cls_flatten, dim=0)
         box_regression_flatten = torch.cat(box_regression_flatten, dim=0)
@@ -249,6 +340,7 @@ class FCOSLossComputation(object):
 
         num_gpus = get_num_gpus()
         # sync num_pos from all gpus
+        # !!!!!!!!!!! 3D Here !!!!!!!!!!!!
         total_num_pos = reduce_sum(pos_inds.new_tensor([pos_inds.numel()])).item()
         num_pos_avg_per_gpu = max(total_num_pos / float(num_gpus), 1.0)
 
@@ -259,17 +351,16 @@ class FCOSLossComputation(object):
 
         if pos_inds.numel() > 0:
             centerness_targets = self.compute_centerness_targets(reg_targets_flatten)
-
             # average sum_centerness_targets from all gpus,
             # which is used to normalize centerness-weighed reg loss
             sum_centerness_targets_avg_per_gpu = \
                 reduce_sum(centerness_targets.sum()).item() / float(num_gpus)
-
             reg_loss = self.box_reg_loss_func(
                 box_regression_flatten,
                 reg_targets_flatten,
                 centerness_targets
             ) / sum_centerness_targets_avg_per_gpu
+
             centerness_loss = self.centerness_loss_func(
                 centerness_flatten,
                 centerness_targets
@@ -278,7 +369,6 @@ class FCOSLossComputation(object):
             reg_loss = box_regression_flatten.sum()
             reduce_sum(centerness_flatten.new_tensor([0.0]))
             centerness_loss = centerness_flatten.sum()
-
         return cls_loss, reg_loss, centerness_loss
 
 

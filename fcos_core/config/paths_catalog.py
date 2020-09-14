@@ -107,6 +107,14 @@ class DatasetCatalog(object):
         "cityscapes_fine_instanceonly_seg_test_cocostyle": {
             "img_dir": "cityscapes/images",
             "ann_file": "cityscapes/annotations/instancesonly_filtered_gtFine_test.json"
+        },
+        "ABUS_train": {
+            "img_dir": "abus",
+            "split":"train"
+        },
+        "ABUS_val": {
+            "img_dir": "abus",
+            "split":"valid"
         }
     }
 
@@ -132,6 +140,16 @@ class DatasetCatalog(object):
             )
             return dict(
                 factory="PascalVOCDataset",
+                args=args,
+            )
+        elif "ABUS" in name:
+            data_dir = DatasetCatalog.DATA_DIR
+            attrs = DatasetCatalog.DATASETS[name]
+            args = dict(
+                root=os.path.join(data_dir, attrs["img_dir"]),
+            )
+            return dict(
+                factory="ABUSDetectionDataset",
                 args=args,
             )
         raise RuntimeError("Dataset not available: {}".format(name))

@@ -5,7 +5,7 @@ import torchvision
 from fcos_core.structures.bounding_box import BoxList
 from fcos_core.structures.segmentation_mask import SegmentationMask
 from fcos_core.structures.keypoint import PersonKeypoints
-
+from .image3d import ImageDetect3DDataset
 
 min_keypoints_per_image = 10
 
@@ -36,35 +36,32 @@ def has_valid_annotation(anno):
     return False
 
 
-class COCODataset(torchvision.datasets.coco.CocoDetection):
+class COCODataset(ImageDetect3DDataset):
     def __init__(
         self, ann_file, root, remove_images_without_annotations, transforms=None
     ):
-        super(COCODataset, self).__init__(root, ann_file)
+        self.coco_data = torchvision.datasets.coco.CocoDetection(root, ann_file)
+
         # sort indices for reproducible results
-        self.ids = sorted(self.ids)
+        self.ids = self.coco_data.ids
 
         # filter images without detection annotations
         if remove_images_without_annotations:
             ids = []
             for img_id in self.ids:
-                ann_ids = self.coco.getAnnIds(imgIds=img_id, iscrowd=None)
-                anno = self.coco.loadAnns(ann_ids)
+                ann_ids = self.coco_data.coco.getAnnIds(imgIds=img_id, iscrowd=None)
+                anno = self.coco_data.coco.loadAnns(ann_ids)
                 if has_valid_annotation(anno):
                     ids.append(img_id)
             self.ids = ids
 
-        self.json_category_id_to_contiguous_id = {
-            v: i + 1 for i, v in enumerate(self.coco.getCatIds())
-        }
-        self.contiguous_category_id_to_json_id = {
-            v: k for k, v in self.json_category_id_to_contiguous_id.items()
-        }
-        self.id_to_img_map = {k: v for k, v in enumerate(self.ids)}
-        self._transforms = transforms
+        super(COCODataset, self).__init__(root, transforms=transforms)
 
-    def __getitem__(self, idx):
-        img, anno = super(COCODataset, self).__getitem__(idx)
+    def getCatIds(self):
+        return self.coco_data.coco.getCatIds()
+
+    def __provide_items__(self, idx):
+        img, anno = self.coco_data[idx]
 
         # filter crowd annotations
         # TODO might be better to add an extra field
@@ -72,30 +69,103 @@ class COCODataset(torchvision.datasets.coco.CocoDetection):
 
         boxes = [obj["bbox"] for obj in anno]
         boxes = torch.as_tensor(boxes).reshape(-1, 4)  # guard against no boxes
+
         target = BoxList(boxes, img.size, mode="xywh").convert("xyxy")
 
         classes = [obj["category_id"] for obj in anno]
-        classes = [self.json_category_id_to_contiguous_id[c] for c in classes]
-        classes = torch.tensor(classes)
-        target.add_field("labels", classes)
 
         masks = [obj["segmentation"] for obj in anno]
         masks = SegmentationMask(masks, img.size, mode='poly')
-        target.add_field("masks", masks)
-
+        keypoints = None
         if anno and "keypoints" in anno[0]:
             keypoints = [obj["keypoints"] for obj in anno]
             keypoints = PersonKeypoints(keypoints, img.size)
-            target.add_field("keypoints", keypoints)
+        return img, target, classes, masks, keypoints
 
-        target = target.clip_to_image(remove_empty=True)
 
-        if self._transforms is not None:
-            img, target = self._transforms(img, target)
 
-        return img, target, idx
+
+    def __provide_ids__(self):
+        return self.ids
 
     def get_img_info(self, index):
         img_id = self.id_to_img_map[index]
-        img_data = self.coco.imgs[img_id]
+        img_data = self.coco_data.coco.imgs[img_id]
         return img_data
+
+
+
+
+
+# class FCOSDataset3D(torch.utils.data.Dataset):
+#     def __init__(
+#         self, tensor_dataset, transforms=None
+#     ):
+#         self.tensor_dataset = tensor_dataset
+#         self.transforms = transforms
+
+#         coco_dataset = torchvision.datasets.coco.CocoDetection(root, ann_file)
+#         coco_dataset = OO_Dataset(coco_dataset, remove_images_without_annotations)
+#         train_dataset = FCOSDataset3D(coco_dataset)
+
+#         COCODataset
+#         super(COCODataset, self).__init__(root, ann_file)
+#         # sort indices for reproducible results
+#         self.ids = sorted(self.ids)
+
+#         # filter images without detection annotations
+#         if remove_images_without_annotations:
+#             ids = []
+#             for img_id in self.ids:
+#                 ann_ids = self.coco.getAnnIds(imgIds=img_id, iscrowd=None)
+#                 anno = self.coco.loadAnns(ann_ids)
+#                 if has_valid_annotation(anno):
+#                     ids.append(img_id)
+#             self.ids = ids
+
+#         self.json_category_id_to_contiguous_id = {
+#             v: i + 1 for i, v in enumerate(self.coco.getCatIds())
+#         }
+#         self.contiguous_category_id_to_json_id = {
+#             v: k for k, v in self.json_category_id_to_contiguous_id.items()
+#         }
+#         self.id_to_img_map = {k: v for k, v in enumerate(self.ids)}
+#         self._transforms = transforms
+
+#     def __len__(self):
+#         return len(self.tensor_dataset)
+
+#     def __getitem__(self, idx):
+#         img, anno = super(COCODataset, self).__getitem__(idx)
+
+#         # filter crowd annotations
+#         # TODO might be better to add an extra field
+#         anno = [obj for obj in anno if obj["iscrowd"] == 0]
+
+#         boxes = [obj["bbox"] for obj in anno]
+#         boxes = torch.as_tensor(boxes).reshape(-1, 4)  # guard against no boxes
+#         target = BoxList(boxes, img.size, mode="xywh").convert("xyxy")
+
+#         classes = [obj["category_id"] for obj in anno]
+#         classes = [self.json_category_id_to_contiguous_id[c] for c in classes]
+#         classes = torch.tensor(classes)
+#         target.add_field("labels", classes)
+
+#         #masks = [obj["segmentation"] for obj in anno]
+#         #masks = SegmentationMask(masks, img.size, mode='poly')
+#         #target.add_field("masks", masks)
+
+#         target = target.clip_to_image(remove_empty=True)
+
+#         if self._transforms is not None:
+#             img, target = self._transforms(img, target)
+
+#         return img, target, idx
+
+#     def get_img_info(self, index):
+#         img_id = self.id_to_img_map[index]
+#         img_data = self.coco.imgs[img_id]
+#         return img_data
+
+
+

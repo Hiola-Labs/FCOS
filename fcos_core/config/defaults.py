@@ -42,7 +42,7 @@ _C.MODEL.USE_SYNCBN = False
 # -----------------------------------------------------------------------------
 _C.INPUT = CN()
 # Size of the smallest side of the image during training
-_C.INPUT.MIN_SIZE_TRAIN = (800,)  # (800,)
+_C.INPUT.MIN_SIZE_TRAIN = 800  # (800,)
 # The range of the smallest side for multi-scale training
 _C.INPUT.MIN_SIZE_RANGE_TRAIN = (-1, -1)  # -1 means disabled and it will use MIN_SIZE_TRAIN
 # Maximum size of the side of the image during training
@@ -58,6 +58,10 @@ _C.INPUT.PIXEL_STD = [1., 1., 1.]
 # Convert image to BGR format (for Caffe2 models), in range 0-255
 _C.INPUT.TO_BGR255 = True
 
+_C.INPUT.TRANSFORM_RESIZE = True
+_C.INPUT.TRANSFORM_FLIP = True
+_C.INPUT.TRANSFORM_NORMALIZE = True
+
 
 # -----------------------------------------------------------------------------
 # Dataset
@@ -67,6 +71,11 @@ _C.DATASETS = CN()
 _C.DATASETS.TRAIN = ()
 # List of the dataset names for testing, as present in paths_catalog.py
 _C.DATASETS.TEST = ()
+
+_C.DATASETS.ABUS_ENABLE_CV = None
+_C.DATASETS.ABUS_CRX_FOLD_NUM = None
+_C.DATASETS.ABUS_AUGMENTATION = None
+_C.DATASETS.ABUS_INCLUDE_FP = None
 
 # -----------------------------------------------------------------------------
 # DataLoader
@@ -93,7 +102,7 @@ _C.MODEL.BACKBONE = CN()
 # (e.g., 'FPN.add_fpn_ResNet101_conv5_body' to specify a ResNet-101-FPN
 # backbone)
 _C.MODEL.BACKBONE.CONV_BODY = "R-50-C4"
-
+_C.MODEL.IS_3D = 0
 # Add StopGrad at a specified stage so the bottom layers are frozen
 _C.MODEL.BACKBONE.FREEZE_CONV_BODY_AT = 2
 # GN for backbone

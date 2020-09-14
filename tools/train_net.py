@@ -25,12 +25,14 @@ from fcos_core.utils.comm import synchronize, \
 from fcos_core.utils.imports import import_file
 from fcos_core.utils.logger import setup_logger
 from fcos_core.utils.miscellaneous import mkdir
-
+from data.abus_data import AbusNpyFormat
 
 def train(cfg, local_rank, distributed):
     model = build_detection_model(cfg)
     device = torch.device(cfg.MODEL.DEVICE)
     model.to(device)
+
+
 
     if cfg.MODEL.USE_SYNCBN:
         assert is_pytorch_1_1_0_or_later(), \
@@ -58,15 +60,44 @@ def train(cfg, local_rank, distributed):
     )
     extra_checkpoint_data = checkpointer.load(cfg.MODEL.WEIGHT)
     arguments.update(extra_checkpoint_data)
-
-    data_loader = make_data_loader(
-        cfg,
-        is_train=True,
-        is_distributed=distributed,
-        start_iter=arguments["iteration"],
-    )
-
     checkpoint_period = cfg.SOLVER.CHECKPOINT_PERIOD
+
+    use_fake_dataloader = 0
+    if use_fake_dataloader:
+
+        #validset = AbusNpyFormat(root, crx_valid=True, crx_fold_num=args.crx_valid, crx_partition='valid', augmentation=False)
+        #trainset = AbusNpyFormat(root, crx_valid=True, crx_fold_num=args.crx_valid, crx_partition='train', augmentation=True)
+        #trainset_loader = DataLoader(trainset, batch_size=args.batch_size, shuffle=True, num_workers=0, pin_memory=True)
+        #validset_loader = DataLoader(validset, batch_size=1, shuffle=False, num_workers=0)
+
+        d = next(trainset_loader)
+
+        class FakeDataset(torch.utils.data.Dataset):
+            """Face Landmarks dataset."""
+            def __init__(self):
+                self.length = 100
+            def __len__(self):
+                return self.length
+
+            def __getitem__(self, idx):
+                B = 2
+                C = 1
+                D = 40
+                W = 160
+                H = 160
+                target = torch.rand((B, C, D, W, H))
+                return (torch.rand((B, C, D, W, H)), target)
+
+        fake_dataset = FakeDataset()
+        data_loader = torch.utils.data.dataloader.DataLoader(fake_dataset, batch_size=2,
+            shuffle=True, num_workers=0)
+    else:
+        data_loader = make_data_loader(
+            cfg,
+            is_train=True,
+            is_distributed=distributed,
+            start_iter=arguments["iteration"],
+        )
 
     do_train(
         model,

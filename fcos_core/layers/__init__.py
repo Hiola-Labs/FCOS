@@ -1,8 +1,9 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 import torch
 
-from .batch_norm import FrozenBatchNorm2d
+from .batch_norm import FrozenBatchNorm2d, FrozenBatchNorm3d
 from .misc import Conv2d
+from .misc import Conv3d
 from .misc import DFConv2d
 from .misc import ConvTranspose2d
 from .misc import BatchNorm2d
@@ -33,11 +34,13 @@ __all__ = [
     "ROIPool",
     "smooth_l1_loss",
     "Conv2d",
+    "Conv3d",
     "DFConv2d",
     "ConvTranspose2d",
     "interpolate",
     "BatchNorm2d",
     "FrozenBatchNorm2d",
+    "FrozenBatchNorm3d",
     "SigmoidFocalLoss",
     'deform_conv',
     'modulated_deform_conv',

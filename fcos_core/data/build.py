@@ -13,8 +13,9 @@ from . import samplers
 from .collate_batch import BatchCollator, BBoxAugCollator
 from .transforms import build_transforms
 
+#import importlib
 
-def build_dataset(dataset_list, transforms, dataset_catalog, is_train=True):
+def build_dataset(cfg, dataset_list, transforms, dataset_catalog, is_train=True):
     """
     Arguments:
         dataset_list (list[str]): Contains the names of the datasets, i.e.,
@@ -31,14 +32,26 @@ def build_dataset(dataset_list, transforms, dataset_catalog, is_train=True):
     datasets = []
     for dataset_name in dataset_list:
         data = dataset_catalog.get(dataset_name)
+        #factory_package = importlib.import_module(data["factory_package"])
+        #factory = getattr(factory_package, data["factory_module"])
+
         factory = getattr(D, data["factory"])
         args = data["args"]
         # for COCODataset, we want to remove images without annotations
         # during training
         if data["factory"] == "COCODataset":
             args["remove_images_without_annotations"] = is_train
+
         if data["factory"] == "PascalVOCDataset":
             args["use_difficult"] = not is_train
+
+        if data["factory"] == "ABUSDetectionDataset":
+            args["crx_valid"] = cfg.DATASETS.ABUS_ENABLE_CV
+            args["crx_fold_num"] = cfg.DATASETS.ABUS_CRX_FOLD_NUM
+            args["augmentation"] = cfg.DATASETS.ABUS_AUGMENTATION
+            args["include_fp"] = cfg.DATASETS.ABUS_INCLUDE_FP
+            args["crx_partition"] = 'train' if is_train else 'val'
+
         args["transforms"] = transforms
         # make dataset from factory
         dataset = factory(**args)
@@ -105,6 +118,7 @@ def make_batch_data_sampler(
 
 
 def make_data_loader(cfg, is_train=True, is_distributed=False, start_iter=0):
+
     num_gpus = get_world_size()
     if is_train:
         images_per_batch = cfg.SOLVER.IMS_PER_BATCH
@@ -125,7 +139,6 @@ def make_data_loader(cfg, is_train=True, is_distributed=False, start_iter=0):
         shuffle = False if not is_distributed else True
         num_iters = None
         start_iter = 0
-
     if images_per_gpu > 1:
         logger = logging.getLogger(__name__)
         logger.warning(
@@ -149,10 +162,12 @@ def make_data_loader(cfg, is_train=True, is_distributed=False, start_iter=0):
     )
     DatasetCatalog = paths_catalog.DatasetCatalog
     dataset_list = cfg.DATASETS.TRAIN if is_train else cfg.DATASETS.TEST
-
+    dataset_list = cfg.DATASETS.TEST
+    for i in range(100):
+        print(" !! Debug  !! dataset_list = cfg.DATASETS.TEST  ")
     # If bbox aug is enabled in testing, simply set transforms to None and we will apply transforms later
     transforms = None if not is_train and cfg.TEST.BBOX_AUG.ENABLED else build_transforms(cfg, is_train)
-    datasets = build_dataset(dataset_list, transforms, DatasetCatalog, is_train)
+    datasets = build_dataset(cfg, dataset_list, transforms, DatasetCatalog, is_train)
 
     data_loaders = []
     for dataset in datasets:
