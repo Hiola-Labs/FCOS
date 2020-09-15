@@ -11,6 +11,8 @@
             "program": "tools/train_net.py",
             "console": "integratedTerminal",
             "args":["--config-file", "configs/fcos/fcos_imprv_R_50_FPN_1x.yaml",
+                "--logdir", "./logs/",
+                "--exp_name", "debug",
                 "DATALOADER.NUM_WORKERS", "0",
                 "OUTPUT_DIR", "training_dir/fcos_imprv_R_50_FPN_1x"]
         },

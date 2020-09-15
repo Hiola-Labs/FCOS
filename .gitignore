@@ -6,7 +6,6 @@ _ext
 maskrcnn_benchmark.egg-info/
 build/
 dist/
-
 # pytorch/python/numpy formats
 *.pth
 *.pkl
@@ -29,3 +28,4 @@ dist/
 # project dirs
 /datasets
 /models
+/logs

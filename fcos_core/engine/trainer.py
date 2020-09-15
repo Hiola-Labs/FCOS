@@ -11,6 +11,8 @@ from fcos_core.utils.metric_logger import MetricLogger
 import numpy as np
 from time import gmtime, strftime
 from tqdm import tqdm
+from TBLogger import TBLogger
+
 def reduce_loss_dict(loss_dict):
     """
     Reduce the loss dictionary from all processes so that process with rank
@@ -44,6 +46,7 @@ def do_train(
     device,
     checkpoint_period,
     arguments,
+    tblogger
 ):
     logger = logging.getLogger("fcos_core.trainer")
     handler = logging.FileHandler("training_log_{}.log".format(strftime("%Y_%m_%d_%H_%M_%S", gmtime())))
@@ -95,6 +98,17 @@ def do_train(
         eta_string = str(datetime.timedelta(seconds=int(eta_seconds)))
 
         if iteration % 20 == 0 or iteration == max_iter:
+            #log to tensorboard
+            tblogger.write_log('loss', {'tr_cls': losses_reduced,
+                'tr_cls': loss_dict_reduced['loss_cls'],
+                'tr_reg': loss_dict_reduced['loss_reg'],
+                'tr_centerness': loss_dict_reduced['loss_centerness']})
+            tblogger.write_log('lr', {'tr': optimizer.param_groups[0]["lr"]})
+            #tblogger.write_log('loss', {'val': np.mean(loss_valid)})
+            #tblogger.write_log('dice', {'val': mean_dsc})
+            tblogger.Step()
+
+            #log to console and local file
             logger.info(
                 meters.delimiter.join(
                     [

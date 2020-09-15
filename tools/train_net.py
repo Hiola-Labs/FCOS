@@ -26,13 +26,12 @@ from fcos_core.utils.imports import import_file
 from fcos_core.utils.logger import setup_logger
 from fcos_core.utils.miscellaneous import mkdir
 from data.abus_data import AbusNpyFormat
+from TBLogger import TBLogger
 
-def train(cfg, local_rank, distributed):
+def train(cfg, local_rank, distributed, tblogger):
     model = build_detection_model(cfg)
     device = torch.device(cfg.MODEL.DEVICE)
     model.to(device)
-
-
 
     if cfg.MODEL.USE_SYNCBN:
         assert is_pytorch_1_1_0_or_later(), \
@@ -108,6 +107,7 @@ def train(cfg, local_rank, distributed):
         device,
         checkpoint_period,
         arguments,
+        tblogger
     )
 
     return model
@@ -161,6 +161,11 @@ def main():
         help="Do not test the final model",
         action="store_true",
     )
+
+    parser.add_argument('--logdir', nargs='?', type=str, default=None,
+        help='Path to saved tensorboard log')
+    parser.add_argument('--exp_name', nargs='?', type=str, default=None,
+        help='experiment name to saved tensorboard log')
     parser.add_argument(
         "opts",
         help="Modify config options using the command-line",
@@ -170,6 +175,7 @@ def main():
 
     args = parser.parse_args()
 
+    tblogger = TBLogger(args.logdir, args.exp_name)
     num_gpus = int(os.environ["WORLD_SIZE"]) if "WORLD_SIZE" in os.environ else 1
     args.distributed = num_gpus > 1
 
@@ -201,7 +207,7 @@ def main():
         logger.info(config_str)
     logger.info("Running with config:\n{}".format(cfg))
 
-    model = train(cfg, args.local_rank, args.distributed)
+    model = train(cfg, args.local_rank, args.distributed, tblogger)
 
     if not args.skip_test:
         run_test(cfg, model, args.distributed)
