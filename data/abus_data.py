@@ -59,7 +59,7 @@ class AbusNpyFormat(data.Dataset):
         ori_data = torch.from_numpy(ori_data)
         ori_data = torch.transpose(ori_data, 0, 2).contiguous()
         ori_data = ori_data.view(1,self.img_size[0],self.img_size[1],self.img_size[2]).to(torch.float32)
-
+        ori_data = ori_data / 255.0
 
         true_boxes = line[-1].split(' ')
         true_boxes = list(map(lambda box: box.split(','), true_boxes))
