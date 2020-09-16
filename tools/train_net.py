@@ -27,7 +27,7 @@ from fcos_core.utils.logger import setup_logger
 from fcos_core.utils.miscellaneous import mkdir
 from data.abus_data import AbusNpyFormat
 from TBLogger import TBLogger
-
+import shutil
 def train(cfg, local_rank, distributed, tblogger):
     model = build_detection_model(cfg)
     device = torch.device(cfg.MODEL.DEVICE)
@@ -192,7 +192,10 @@ def main():
 
     output_dir = cfg.OUTPUT_DIR
     if output_dir:
-        mkdir(output_dir)
+        if 'debug' in output_dir and os.path.exists(output_dir):
+            shutil.rmtree(output_dir)
+        if not os.path.exists(output_dir):
+            mkdir(output_dir)
 
     logger = setup_logger("fcos_core", output_dir, get_rank())
     logger.info("Using {} GPUs".format(num_gpus))
