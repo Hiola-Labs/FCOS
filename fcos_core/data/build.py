@@ -162,9 +162,6 @@ def make_data_loader(cfg, is_train=True, is_distributed=False, start_iter=0):
     )
     DatasetCatalog = paths_catalog.DatasetCatalog
     dataset_list = cfg.DATASETS.TRAIN if is_train else cfg.DATASETS.TEST
-    dataset_list = cfg.DATASETS.TEST
-    for i in range(100):
-        print(" !! Debug  !! dataset_list = cfg.DATASETS.TEST  ")
     # If bbox aug is enabled in testing, simply set transforms to None and we will apply transforms later
     transforms = None if not is_train and cfg.TEST.BBOX_AUG.ENABLED else build_transforms(cfg, is_train)
     datasets = build_dataset(cfg, dataset_list, transforms, DatasetCatalog, is_train)

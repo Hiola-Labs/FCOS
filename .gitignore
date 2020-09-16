@@ -29,6 +29,7 @@ dist/
 /datasets
 /models
 /logs
+/training_dir
 
 #logs
 /training_log*.log

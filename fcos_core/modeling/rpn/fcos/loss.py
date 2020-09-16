@@ -74,7 +74,7 @@ class FCOSLossComputation(object):
             gt_xs, gt_ys = gt_xyz
             center_x = (gt[..., 0] + gt[..., 2]) / 2
         # no gt
-        if center_x[..., 0].sum() == 0:
+        if gt.size(1)==0 or center_x[..., 0].sum() == 0:
             return gt_xs.new_zeros(gt_xs.shape, dtype=torch.uint8)
 
         if is_3D:

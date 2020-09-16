@@ -68,7 +68,7 @@ def do_train(
         arguments["iteration"] = iteration
 
         # in pytorch >= 1.1.0, scheduler.step() should be run after optimizer.step()
-        if not pytorch_1_1_0_or_later:
+        if not pytorch_1_1_0_or_later and scheduler:
             scheduler.step()
 
         images = images.to(device)
@@ -87,7 +87,7 @@ def do_train(
         losses.backward()
         optimizer.step()
 
-        if pytorch_1_1_0_or_later:
+        if pytorch_1_1_0_or_later and scheduler:
             scheduler.step()
 
         batch_time = time.time() - end
@@ -99,7 +99,7 @@ def do_train(
 
         if iteration % 20 == 0 or iteration == max_iter:
             #log to tensorboard
-            tblogger.write_log('loss', {'tr_cls': losses_reduced,
+            tblogger.write_log('loss', {'tr_total': losses_reduced,
                 'tr_cls': loss_dict_reduced['loss_cls'],
                 'tr_reg': loss_dict_reduced['loss_reg'],
                 'tr_centerness': loss_dict_reduced['loss_centerness']})
