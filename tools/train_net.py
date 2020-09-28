@@ -39,8 +39,9 @@ def train(cfg, local_rank, distributed, tblogger):
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
 
     optimizer = make_optimizer(cfg, model)
-    scheduler = make_lr_scheduler(cfg, optimizer)
-
+    scheduler = None
+    if cfg.SOLVER.TYPE == 'SGD':
+        scheduler = make_lr_scheduler(cfg, optimizer)
     if distributed:
         model = torch.nn.parallel.DistributedDataParallel(
             model, device_ids=[local_rank], output_device=local_rank,
