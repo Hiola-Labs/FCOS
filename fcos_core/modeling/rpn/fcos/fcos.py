@@ -188,7 +188,6 @@ class FCOSModule(torch.nn.Module):
         return None, losses
 
     def _forward_test(self, locations, box_cls, box_regression, centerness, image_sizes):
-        assert 1==2, 'modify 3D'
         boxes = self.box_selector_test(
             locations, box_cls, box_regression,
             centerness, image_sizes
