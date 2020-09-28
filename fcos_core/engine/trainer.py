@@ -74,6 +74,13 @@ def do_train(
         images = images.to(device)
         #from visualize import visualize
         #visualize(images.tensors[0].cpu().numpy()[0][:, :30, :].astype(np.uint8))
+
+        #TODO clean data
+        any_target_missing = False
+        if 0 in [t.bbox.size(0) for t in targets]:
+            iteration = iteration - 1
+            logger.warning('target missing, batch_data id : {}'.format(batch_data[2]))
+            continue
         targets = [target.to(device) for target in targets]
         loss_dict = model(images, targets)
         losses = sum(loss for loss in loss_dict.values())
@@ -94,8 +101,6 @@ def do_train(
         end = time.time()
         meters.update(time=batch_time, data=data_time)
 
-        eta_seconds = meters.time.global_avg * (max_iter - iteration)
-        eta_string = str(datetime.timedelta(seconds=int(eta_seconds)))
 
         if iteration % 20 == 0 or iteration == max_iter:
             #log to tensorboard
@@ -109,6 +114,8 @@ def do_train(
             tblogger.Step()
 
             #log to console and local file
+            eta_seconds = meters.time.global_avg * (max_iter - iteration)
+            eta_string = str(datetime.timedelta(seconds=int(eta_seconds)))
             logger.info(
                 meters.delimiter.join(
                     [

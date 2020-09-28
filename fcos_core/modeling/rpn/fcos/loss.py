@@ -212,6 +212,8 @@ class FCOSLossComputation(object):
 
         for im_i in range(len(targets)):
             targets_per_im = targets[im_i]
+            if targets_per_im.bbox.size(0)==0:
+                continue
             assert targets_per_im.mode == "xyxy" or targets_per_im.mode == "xyzxyz"
             bboxes = targets_per_im.bbox
             labels_per_im = targets_per_im.get_field("labels")
