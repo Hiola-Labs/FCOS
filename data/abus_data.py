@@ -35,7 +35,7 @@ class AbusNpyFormat(data.Dataset):
             self.gt = lines
 
         self.set_size = len(self.gt)
-        self.aug = augmentation
+        self.aug = (augmentation & bool(crx_partition == 'train'))
         self.img_size = (640,160,640)
 
         print('Dataset info: Cross-validation {}, partition: {}, fold number {}, data augmentation {}'\
