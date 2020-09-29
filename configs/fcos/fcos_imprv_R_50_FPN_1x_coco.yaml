@@ -1,8 +1,8 @@
-
 # FCOS with improvements
 MODEL:
   META_ARCHITECTURE: "GeneralizedRCNN"
-  WEIGHT: "catalog://ImageNetPretrained/MSRA/R-50"
+  WEIGHT: None #"catalog://ImageNetPretrained/MSRA/R-50"
+  #WEIGHT: "FCOS_imprv_R_50_FPN_1x.pth"
   RPN_ONLY: True
   FCOS_ON: True
   BACKBONE:
@@ -22,19 +22,22 @@ MODEL:
     CENTER_SAMPLING_RADIUS: 1.5
     IOU_LOSS_TYPE: "giou"
 DATASETS:
-  TRAIN: ("coco_2014_train", "coco_2014_valminusminival")
+  TRAIN: ("coco_2014_minival",)
   TEST: ("coco_2014_minival",)
 INPUT:
-  MIN_SIZE_TRAIN: (800,)
+  MIN_SIZE_TRAIN: 800
   MAX_SIZE_TRAIN: 1333
   MIN_SIZE_TEST: 800
   MAX_SIZE_TEST: 1333
 DATALOADER:
   SIZE_DIVISIBILITY: 32
 SOLVER:
-  BASE_LR: 0.01
+  TYPE: 'SGD' #SGD, RAdam
+  BASE_LR: 0.0025
   WEIGHT_DECAY: 0.0001
-  STEPS: (60000, 80000)
-  MAX_ITER: 90000
-  IMS_PER_BATCH: 16
+  STEPS: (240000, 320000)
+  MAX_ITER: 360000
+  IMS_PER_BATCH: 4
   WARMUP_METHOD: "constant"
+#export CUDA_VISIBLE_DEVICES=0 && python tools/train_net.py --config-file configs/fcos/fcos_imprv_R_50_FPN_1x_coco.yaml --logdir ./logs/ --exp_name COCO_v2 DATALOADER.NUM_WORKERS 0 OUTPUT_DIR training_dir/fcos_imprv_R_50_FPN_1x_coco_scratch
+

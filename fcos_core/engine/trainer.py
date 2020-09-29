@@ -59,6 +59,8 @@ def do_train(
     start_training_time = time.time()
     end = time.time()
     pytorch_1_1_0_or_later = is_pytorch_1_1_0_or_later()
+    if tblogger:
+        tblogger.step = (start_iter // 20) +1
     for iteration, batch_data in tqdm(enumerate(data_loader, start_iter)):
         images = batch_data[0]
         targets = batch_data[1]

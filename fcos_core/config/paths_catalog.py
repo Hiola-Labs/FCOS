@@ -147,6 +147,7 @@ class DatasetCatalog(object):
             attrs = DatasetCatalog.DATASETS[name]
             args = dict(
                 root=os.path.join(data_dir, attrs["img_dir"]),
+                crx_partition=attrs["split"],
             )
             return dict(
                 factory="ABUSDetectionDataset",

@@ -10,11 +10,12 @@
             "request": "launch",
             "program": "tools/train_net.py",
             "console": "integratedTerminal",
-            "args":["--config-file", "configs/fcos/fcos_imprv_R_50_FPN_1x.yaml",
+            "args":["--config-file", "configs/fcos/fcos_imprv_R_50_FPN_1x_ABUS.yaml",
                 "--logdir", "./logs/",
-                "--exp_name", "debug",
-                "DATALOADER.NUM_WORKERS", "0",
-                "OUTPUT_DIR", "training_dir/fcos_imprv_R_50_FPN_1x"]
+                "--exp_name", "ABUS_all_new",
+                "DATALOADER.NUM_WORKERS", "6",
+                "OUTPUT_DIR", "trainlog/fcos_imprv_R_50_FPN_1x_ABUS_all_small_32500"],
+            "env":{"CUDA_VISIBLE_DEVICES":"0"}
         },
         {
             "name": "FCOS_Test",
@@ -24,8 +25,9 @@
             "console": "integratedTerminal",
             "args":["--config-file", "configs/fcos/fcos_imprv_R_50_FPN_1x.yaml",
                 "DATALOADER.NUM_WORKERS", "1",
-                "MODEL.WEIGHT", "FCOS_imprv_R_50_FPN_1x.pth",
-                "TEST.IMS_PER_BATCH", "4"]
+                "MODEL.WEIGHT", "training_dir/fcos_imprv_R_50_FPN_1x_baseline2/model_0020000.pth",
+                "TEST.IMS_PER_BATCH", "2"],
+            "env":{"CUDA_VISIBLE_DEVICES":"0"}
         },
         {
             "name": "FCOS_CurrentFile",

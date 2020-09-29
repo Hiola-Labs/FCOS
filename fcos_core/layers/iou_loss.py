@@ -66,11 +66,11 @@ class IOULoss(nn.Module):
         else:
             d_intersect = 1 # 1 makes no different in area
             g_d_intersect = 1 # 1 makes no different in area
-        ac_uion = g_w_intersect * g_h_intersect * g_d_intersect + 1e-7
+        ac_uion = g_w_intersect * g_h_intersect * g_d_intersect
         area_intersect = w_intersect * h_intersect * d_intersect
         area_union = target_area + pred_area - area_intersect
-        ious = (area_intersect + 1.0) / (area_union + 1.0)
-        gious = ious - (ac_uion - area_union) / ac_uion
+        ious = (area_intersect ) / (area_union + 1e-3)
+        gious = ious - (ac_uion - area_union) / (ac_uion + 1e-3)
         if self.loss_type == 'iou':
             losses = -torch.log(ious)
         elif self.loss_type == 'linear_iou':

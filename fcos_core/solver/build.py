@@ -2,7 +2,6 @@
 import torch
 import logging
 from .lr_scheduler import WarmupMultiStepLR
-from .radam import RAdam
 
 
 def make_optimizer(cfg, model):
@@ -24,8 +23,6 @@ def make_optimizer(cfg, model):
         params += [{"params": [value], "lr": lr, "weight_decay": weight_decay}]
     if cfg.SOLVER.TYPE=='SGD':
         optimizer = torch.optim.SGD(params, lr, momentum=cfg.SOLVER.MOMENTUM)
-    elif cfg.SOLVER.TYPE=='RAdam':
-        optimizer = RAdam(params, cfg.SOLVER.BASE_LR)
     else:
         raise NotImplementedError
 

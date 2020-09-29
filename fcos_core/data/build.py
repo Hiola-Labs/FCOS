@@ -50,7 +50,8 @@ def build_dataset(cfg, dataset_list, transforms, dataset_catalog, is_train=True)
             args["crx_fold_num"] = cfg.DATASETS.ABUS_CRX_FOLD_NUM
             args["augmentation"] = cfg.DATASETS.ABUS_AUGMENTATION
             args["include_fp"] = cfg.DATASETS.ABUS_INCLUDE_FP
-            args["crx_partition"] = 'train' if is_train else 'val'
+            #args["crx_partition"] = args['split']#'train' if is_train else 'valid'
+            #args["root"] = args['img_dir']
 
         args["transforms"] = transforms
         # make dataset from factory

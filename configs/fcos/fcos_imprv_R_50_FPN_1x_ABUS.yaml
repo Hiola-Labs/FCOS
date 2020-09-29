@@ -1,0 +1,61 @@
+# FCOS with improvements
+MODEL:
+  IS_3D: 1
+  META_ARCHITECTURE: "GeneralizedRCNN"
+  WEIGHT: None #"catalog://ImageNetPretrained/MSRA/R-50"
+  RPN_ONLY: True
+  FCOS_ON: True
+  BACKBONE:
+    CONV_BODY: "R-50-FPN-RETINANET"
+    FREEZE_CONV_BODY_AT: -1
+  RESNETS:
+    BACKBONE_OUT_CHANNELS: 128
+    RES2_OUT_CHANNELS: 128
+  RETINANET:
+    USE_C5: False # FCOS uses P5 instead of C5
+  FCOS:
+    NUM_CLASSES: 3  # the number of classes including background
+    # normalizing the regression targets with FPN strides
+    NORM_REG_TARGETS: True
+    # positioning centerness on the regress branch.
+    # Please refer to https://github.com/tianzhi0549/FCOS/issues/89#issuecomment-516877042
+    CENTERNESS_ON_REG: True
+    # using center sampling and GIoU.
+    # Please refer to https://github.com/yqyao/FCOS_PLUS
+    CENTER_SAMPLING_RADIUS: 1.5
+    IOU_LOSS_TYPE: "giou"
+DATASETS:
+  TRAIN: ("ABUS_train",) #coco_2014_minival ABUS_train
+  TEST: ("ABUS_val",) #coco_2014_minival ABUS_val
+
+  ABUS_ENABLE_CV: True
+  ABUS_CRX_FOLD_NUM: 0
+  ABUS_AUGMENTATION: True
+  ABUS_INCLUDE_FP: False
+
+INPUT:
+  MIN_SIZE_TRAIN: 160
+  MAX_SIZE_TRAIN: 640
+  MIN_SIZE_TEST: 160
+  MAX_SIZE_TEST: 640
+  TO_BGR255: False
+  TRANSFORM_NORMALIZE: False # should we normalize?
+
+  #TRANSFORM_RESIZE: True # default True
+  #TRANSFORM_FLIP: False # default True
+
+
+
+DATALOADER:
+  SIZE_DIVISIBILITY: 32
+
+SOLVER:
+  TYPE: 'SGD' #SGD, RAdam
+  BASE_LR: 0.0025 # suggested
+  WEIGHT_DECAY: 0.0001
+  STEPS: (240000, 320000)
+  MAX_ITER: 360000
+  IMS_PER_BATCH: 1
+  WARMUP_METHOD: "constant"
+
+#export CUDA_VISIBLE_DEVICES=0 && python tools/train_net.py --config-file configs/fcos/fcos_imprv_R_50_FPN_1x_ABUS.yaml --logdir ./logs/ --exp_name ABUS_all DATALOADER.NUM_WORKERS 4 OUTPUT_DIR trainlog/fcos_imprv_R_50_FPN_1x_ABUS_all
