@@ -350,18 +350,21 @@ class FCOSLossComputation(object):
             box_cls_flatten,
             labels_flatten.int()
         ) / num_pos_avg_per_gpu
-
+        pred_area_mean=-1
+        area_union_mean=-1
         if pos_inds.numel() > 0:
             centerness_targets = self.compute_centerness_targets(reg_targets_flatten)
             # average sum_centerness_targets from all gpus,
             # which is used to normalize centerness-weighed reg loss
             sum_centerness_targets_avg_per_gpu = \
                 reduce_sum(centerness_targets.sum()).item() / float(num_gpus)
-            reg_loss = self.box_reg_loss_func(
+            reg_loss, pred_area_mean, area_union_mean = self.box_reg_loss_func(
                 box_regression_flatten,
                 reg_targets_flatten,
                 centerness_targets
-            ) / sum_centerness_targets_avg_per_gpu
+            )
+            reg_loss = reg_loss / sum_centerness_targets_avg_per_gpu
+
 
             centerness_loss = self.centerness_loss_func(
                 centerness_flatten,
@@ -371,7 +374,7 @@ class FCOSLossComputation(object):
             reg_loss = box_regression_flatten.sum()
             reduce_sum(centerness_flatten.new_tensor([0.0]))
             centerness_loss = centerness_flatten.sum()
-        return cls_loss, reg_loss, centerness_loss
+        return cls_loss, reg_loss, centerness_loss, pred_area_mean, area_union_mean
 
 
 def make_fcos_loss_evaluator(cfg):

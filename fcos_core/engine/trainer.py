@@ -85,6 +85,10 @@ def do_train(
             continue
         targets = [target.to(device) for target in targets]
         loss_dict = model(images, targets)
+        pred_area_mean = loss_dict['pred_area_mean']
+        area_union_mean = loss_dict['area_union_mean']
+
+        loss_dict = {k:loss_dict[k] for k in loss_dict.keys() if not k in ['area_union_mean', 'pred_area_mean']}
         losses = sum(loss for loss in loss_dict.values())
 
         # reduce losses over all GPUs for logging purposes
@@ -93,6 +97,7 @@ def do_train(
         meters.update(loss=losses_reduced, **loss_dict_reduced)
 
         optimizer.zero_grad()
+        #losses = loss_dict['loss_reg']
         losses.backward()
         optimizer.step()
 
@@ -111,6 +116,9 @@ def do_train(
                 'tr_reg': loss_dict_reduced['loss_reg'],
                 'tr_centerness': loss_dict_reduced['loss_centerness']})
             tblogger.write_log('lr', {'tr': optimizer.param_groups[0]["lr"]})
+            tblogger.write_log('area', {'pred_mean': pred_area_mean})
+            tblogger.write_log('area', {'union_mean': area_union_mean})
+
             #tblogger.write_log('loss', {'val': np.mean(loss_valid)})
             #tblogger.write_log('dice', {'val': mean_dsc})
             tblogger.Step()

@@ -34,9 +34,9 @@ def get_extensions():
 
     extension = CppExtension
 
-    extra_compile_args = {"cxx": ["-I/data/bruce/FCOS_3D/FCOS/fcos_core/csrc"]}
+    extra_compile_args = {"cxx": ["-I/home/lab402/p08922003/FCOS/fcos_core/csrc"]}
     define_macros = []
-
+    assert torch.cuda.is_available() and CUDA_HOME is not None, 'CUDA_HOME not found'
     if (torch.cuda.is_available() and CUDA_HOME is not None) or os.getenv("FORCE_CUDA", "0") == "1":
         extension = CUDAExtension
         sources += source_cuda

@@ -12,9 +12,9 @@
             "console": "integratedTerminal",
             "args":["--config-file", "configs/fcos/fcos_imprv_R_50_FPN_1x_ABUS.yaml",
                 "--logdir", "./logs/",
-                "--exp_name", "ABUS_all_new",
-                "DATALOADER.NUM_WORKERS", "6",
-                "OUTPUT_DIR", "trainlog/fcos_imprv_R_50_FPN_1x_ABUS_all_small_32500"],
+                "--exp_name", "ABUS_all",
+                "DATALOADER.NUM_WORKERS", "0",
+                "OUTPUT_DIR", "trainlog/fcos_imprv_R_50_FPN_1x_ABUS_all_256"],
             "env":{"CUDA_VISIBLE_DEVICES":"0"}
         },
         {

@@ -36,6 +36,22 @@ class IOULoss(nn.Module):
             pred_area = (pred_left + pred_right) * \
                         (pred_top + pred_bottom) * \
                         (pred_front + pred_behind)
+            print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+            print("pred_left : ", pred_left)
+            print("pred_right : ", pred_right)
+            print("pred_top : ", pred_top)
+            print("pred_bottom : ", pred_bottom)
+            print("pred_front : ", pred_front)
+            print("pred_behind : ", pred_behind)
+
+            print("==================================================")
+
+            print("target_left : ", target_left)
+            print("target_right : ", target_right)
+            print("target_top : ", target_top)
+            print("target_bottom : ", target_bottom)
+            print("target_front : ", target_front)
+            print("target_behind : ", target_behind)
 
         else:
             pred_left = pred[:, 0]
@@ -66,11 +82,12 @@ class IOULoss(nn.Module):
         else:
             d_intersect = 1 # 1 makes no different in area
             g_d_intersect = 1 # 1 makes no different in area
-        ac_uion = g_w_intersect * g_h_intersect * g_d_intersect
+        print("pred_area: ", pred_area)
+        ac_uion = g_w_intersect * g_h_intersect * g_d_intersect + 1e-7
         area_intersect = w_intersect * h_intersect * d_intersect
         area_union = target_area + pred_area - area_intersect
-        ious = (area_intersect ) / (area_union + 1e-3)
-        gious = ious - (ac_uion - area_union) / (ac_uion + 1e-3)
+        ious = (area_intersect + 1.0) / (area_union + 1.0)
+        gious = ious - (ac_uion - area_union) / ac_uion
         if self.loss_type == 'iou':
             losses = -torch.log(ious)
         elif self.loss_type == 'linear_iou':
@@ -81,7 +98,7 @@ class IOULoss(nn.Module):
             raise NotImplementedError
 
         if weight is not None and weight.sum() > 0:
-            return (losses * weight).sum()
+            return (losses * weight).sum(), pred_area.mean(), area_union.mean()
         else:
             assert losses.numel() != 0
-            return losses.sum()
+            return losses.sum(), pred_area.mean(), area_union.mean()

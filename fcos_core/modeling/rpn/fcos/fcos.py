@@ -177,13 +177,15 @@ class FCOSModule(torch.nn.Module):
             )
 
     def _forward_train(self, locations, box_cls, box_regression, centerness, targets):
-        loss_box_cls, loss_box_reg, loss_centerness = self.loss_evaluator(
+        loss_box_cls, loss_box_reg, loss_centerness, pred_area_mean, area_union_mean = self.loss_evaluator(
             locations, box_cls, box_regression, centerness, targets
         )
         losses = {
             "loss_cls": loss_box_cls,
             "loss_reg": loss_box_reg,
-            "loss_centerness": loss_centerness
+            "loss_centerness": loss_centerness,
+            "pred_area_mean": pred_area_mean,
+            "area_union_mean": area_union_mean
         }
         return None, losses
 
