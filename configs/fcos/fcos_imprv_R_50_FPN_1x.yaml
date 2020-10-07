@@ -9,11 +9,13 @@ MODEL:
     CONV_BODY: "R-50-FPN-RETINANET"
     FREEZE_CONV_BODY_AT: -1
   RESNETS:
-    BACKBONE_OUT_CHANNELS: 256
+    STEM_OUT_CHANNELS: 32
+    BACKBONE_OUT_CHANNELS: 128
+    RES2_OUT_CHANNELS: 128
   RETINANET:
     USE_C5: False # FCOS uses P5 instead of C5
   FCOS:
-    NUM_CLASSES: 2  # the number of classes including background
+    NUM_CLASSES: 3  # the number of classes including background
     # normalizing the regression targets with FPN strides
     NORM_REG_TARGETS: True
     # positioning centerness on the regress branch.
@@ -33,17 +35,18 @@ DATASETS:
   ABUS_INCLUDE_FP: False
 
 INPUT:
-  MIN_SIZE_TRAIN: 120
-  MAX_SIZE_TRAIN: 480
-  MIN_SIZE_TEST: 120
-  MAX_SIZE_TEST: 480
+  MIN_SIZE_TRAIN: 80
+  MAX_SIZE_TRAIN: 320
+  MIN_SIZE_TEST: 80
+  MAX_SIZE_TEST: 320
   TRANSFORM_RESIZE: True
-  TRANSFORM_FLIP: False
+  TRANSFORM_FLIP: True
   TRANSFORM_NORMALIZE: False
+
 DATALOADER:
   SIZE_DIVISIBILITY: 32
 SOLVER:
-  BASE_LR: 0.01
+  BASE_LR: 0.0025
   WEIGHT_DECAY: 0.0001
   STEPS: (60000, 80000)
   MAX_ITER: 90000
