@@ -33,3 +33,4 @@ dist/
 #logs
 /training_log*.log
 trainlog/
+training_dir/

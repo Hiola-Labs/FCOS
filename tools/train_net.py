@@ -62,41 +62,13 @@ def train(cfg, local_rank, distributed, tblogger):
     checkpoint_period = cfg.SOLVER.CHECKPOINT_PERIOD
 
     use_fake_dataloader = 0
-    if use_fake_dataloader:
 
-        #validset = AbusNpyFormat(root, crx_valid=True, crx_fold_num=args.crx_valid, crx_partition='valid', augmentation=False)
-        #trainset = AbusNpyFormat(root, crx_valid=True, crx_fold_num=args.crx_valid, crx_partition='train', augmentation=True)
-        #trainset_loader = DataLoader(trainset, batch_size=args.batch_size, shuffle=True, num_workers=0, pin_memory=True)
-        #validset_loader = DataLoader(validset, batch_size=1, shuffle=False, num_workers=0)
-
-        d = next(trainset_loader)
-
-        class FakeDataset(torch.utils.data.Dataset):
-            """Face Landmarks dataset."""
-            def __init__(self):
-                self.length = 100
-            def __len__(self):
-                return self.length
-
-            def __getitem__(self, idx):
-                B = 2
-                C = 1
-                D = 40
-                W = 160
-                H = 160
-                target = torch.rand((B, C, D, W, H))
-                return (torch.rand((B, C, D, W, H)), target)
-
-        fake_dataset = FakeDataset()
-        data_loader = torch.utils.data.dataloader.DataLoader(fake_dataset, batch_size=2,
-            shuffle=True, num_workers=0)
-    else:
-        data_loader = make_data_loader(
-            cfg,
-            is_train=True,
-            is_distributed=distributed,
-            start_iter=arguments["iteration"],
-        )
+    data_loader = make_data_loader(
+        cfg,
+        is_train=True,
+        is_distributed=distributed,
+        start_iter=arguments["iteration"],
+    )
 
     do_train(
         model,

@@ -58,7 +58,7 @@ class AbusNpyFormat(data.Dataset):
         # numpy array data (x,y,z) is not in the same order as gt label, which is (z,y,x)
         ori_data = np.load(self.root + 'converted_{}_{}_{}/'.format(self.img_size[0], self.img_size[1], self.img_size[2]) + line[0].replace('/', '_'))
         ori_data = torch.from_numpy(ori_data)
-        ori_data = torch.transpose(ori_data, 0, 2).contiguous()
+        ori_data = torch.transpose(ori_data, 0, 2).contiguous() # from xyz to zyx
         ori_data = ori_data.view(1,self.img_size[0],self.img_size[1],self.img_size[2]).to(torch.float32)
 
 

@@ -17,14 +17,14 @@ MODEL:
   FCOS:
     NUM_CLASSES: 3  # the number of classes including background
     # normalizing the regression targets with FPN strides
-    NORM_REG_TARGETS: True
+    NORM_REG_TARGETS: False
     # positioning centerness on the regress branch.
     # Please refer to https://github.com/tianzhi0549/FCOS/issues/89#issuecomment-516877042
-    CENTERNESS_ON_REG: True
+    CENTERNESS_ON_REG: False
     # using center sampling and GIoU.
     # Please refer to https://github.com/yqyao/FCOS_PLUS
-    CENTER_SAMPLING_RADIUS: 1.5
-    IOU_LOSS_TYPE: "giou"
+    CENTER_SAMPLING_RADIUS: 0.0 # 1.5
+    IOU_LOSS_TYPE: "linear_iou" #"giou"
 DATASETS:
   TRAIN: ("ABUS_train",) #coco_2014_minival ABUS_train
   TEST: ("ABUS_val",) #coco_2014_minival ABUS_val

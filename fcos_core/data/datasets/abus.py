@@ -46,8 +46,8 @@ class ABUSDetectionDataset(ImageDetect3DDataset):
         return [0, 1] #background=0  tumor=1
 
     def __provide_items__(self, index):
-        img, target = self.abusNpy[index]
-
+        img, target = self.abusNpy[index] #shape 1, 640, 160, 640 (B, z, y, x)
+        img = torch.transpose(img, 1, 3).contiguous() #from zyx to xyz
         masks = None
         keypoints = None
 
