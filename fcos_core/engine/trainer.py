@@ -102,7 +102,7 @@ def do_train(
 
         if iteration % 20 == 0 or iteration == max_iter:
             #log to tensorboard
-            tblogger.write_log('loss', {'tr_cls': losses_reduced,
+            tblogger.write_log('loss', {'tr_total': losses_reduced,
                 'tr_cls': loss_dict_reduced['loss_cls'],
                 'tr_reg': loss_dict_reduced['loss_reg'],
                 'tr_centerness': loss_dict_reduced['loss_centerness']})

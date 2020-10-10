@@ -58,7 +58,11 @@ class Resize(object):
         mode = 'bilinear'
         if len(size) == 3:
             mode = 'trilinear'
-        image = nn_F.interpolate(image.unsqueeze(0), size=size, mode=mode)[0]
+
+        if (size==image.size()[1:]):
+            pass
+        else:
+            image = nn_F.interpolate(image.unsqueeze(0), size=size, mode=mode)[0]
         if isinstance(target, list):
             target = [t.resize(size) for t in target]
         elif target is None:
