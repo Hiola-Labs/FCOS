@@ -57,22 +57,21 @@ class FCOSPostProcessor(torch.nn.Module):
         """
 
         is_3D = False
-        if len(box_cls.shape==5):
+        if len(box_cls.shape)==5:
             is_3D = True
         if is_3D:
-            N, C, H, W, D = box_cls.shape
+            N, C, W, H, D = box_cls.shape
         else:
             N, C, H, W = box_cls.shape
 
 
         if is_3D:
-            box_cls = tensor.zeros((N, C, H, W)) # testing
             # put in the same format as locations
-            box_cls = box_cls.view(N, C, H, W).permute(0, 2, 3, 1)
+            box_cls = box_cls.view(N, C, W, H, D).permute(0, 2, 3, 4, 1)
             box_cls = box_cls.reshape(N, -1, C).sigmoid()
-            box_regression = box_regression.view(N, 4, H, W).permute(0, 2, 3, 1)
-            box_regression = box_regression.reshape(N, -1, 4)
-            centerness = centerness.view(N, 1, H, W).permute(0, 2, 3, 1)
+            box_regression = box_regression.view(N, 6, W, H, D).permute(0, 2, 3, 4, 1)
+            box_regression = box_regression.reshape(N, -1, 6)
+            centerness = centerness.view(N, 1, W, H, D).permute(0, 2, 3, 4, 1)
             centerness = centerness.reshape(N, -1).sigmoid()
 
             candidate_inds = box_cls > self.pre_nms_thresh
@@ -81,7 +80,6 @@ class FCOSPostProcessor(torch.nn.Module):
 
             # multiply the classification scores with centerness scores
             box_cls = box_cls * centerness[:, :, None]
-            assert 1==2, 'modify 3d'
 
         else:
             # put in the same format as locations
@@ -122,17 +120,32 @@ class FCOSPostProcessor(torch.nn.Module):
                 per_box_regression = per_box_regression[top_k_indices]
                 per_locations = per_locations[top_k_indices]
 
-            detections = torch.stack([
-                per_locations[:, 0] - per_box_regression[:, 0],
-                per_locations[:, 1] - per_box_regression[:, 1],
-                per_locations[:, 0] + per_box_regression[:, 2],
-                per_locations[:, 1] + per_box_regression[:, 3],
-            ], dim=1)
-
-            h, w = image_sizes[i]
-            boxlist = BoxList(detections, (int(w), int(h)), mode="xyxy")
+            if is_3D:
+                stack_list = [
+                    per_locations[:, 0] - per_box_regression[:, 0],
+                    per_locations[:, 1] - per_box_regression[:, 1],
+                    per_locations[:, 2] - per_box_regression[:, 2],
+                    per_locations[:, 0] + per_box_regression[:, 3],
+                    per_locations[:, 1] + per_box_regression[:, 4],
+                    per_locations[:, 2] + per_box_regression[:, 5],
+                ]
+            else:
+                stack_list = [
+                    per_locations[:, 0] - per_box_regression[:, 0],
+                    per_locations[:, 1] - per_box_regression[:, 1],
+                    per_locations[:, 0] + per_box_regression[:, 2],
+                    per_locations[:, 1] + per_box_regression[:, 3],
+                ]
+            detections = torch.stack(stack_list, dim=1)
+            if is_3D:
+                w, h, d = image_sizes
+                boxlist = BoxList(detections, (int(w), int(h), int(d)), mode="xyzxyz")
+                boxlist.add_field("scores", torch.pow(per_box_cls, 1/3.0))
+            else:
+                h, w = image_sizes[i]
+                boxlist = BoxList(detections, (int(w), int(h)), mode="xyxy")
+                boxlist.add_field("scores", torch.sqrt(per_box_cls))
             boxlist.add_field("labels", per_class)
-            boxlist.add_field("scores", torch.sqrt(per_box_cls))
             boxlist = boxlist.clip_to_image(remove_empty=False)
             boxlist = remove_small_boxes(boxlist, self.min_size)
             results.append(boxlist)
@@ -188,7 +201,6 @@ class FCOSPostProcessor(torch.nn.Module):
                 keep = torch.nonzero(keep).squeeze(1)
                 result = result[keep]
             results.append(result)
-        assert 1==2, 'modify 3D'
         return results
 
 

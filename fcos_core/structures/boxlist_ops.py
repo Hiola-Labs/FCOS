@@ -48,7 +48,10 @@ def boxlist_ml_nms(boxlist, nms_thresh, max_proposals=-1,
     if nms_thresh <= 0:
         return boxlist
     mode = boxlist.mode
-    boxlist = boxlist.convert("xyxy")
+    if boxlist.mode == 'xyzxyz' or boxlist.mode == 'xyzwhd':
+        boxlist = boxlist.convert("xyzxyz")
+    else:
+        boxlist = boxlist.convert("xyxy")
     boxes = boxlist.bbox
     scores = boxlist.get_field(score_field)
     labels = boxlist.get_field(label_field)
@@ -68,11 +71,18 @@ def remove_small_boxes(boxlist, min_size):
         min_size (int)
     """
     # TODO maybe add an API for querying the ws / hs
-    xywh_boxes = boxlist.convert("xywh").bbox
-    _, _, ws, hs = xywh_boxes.unbind(dim=1)
-    keep = (
-        (ws >= min_size) & (hs >= min_size)
-    ).nonzero().squeeze(1)
+    if boxlist.mode=='xyzxyz':
+        xywh_boxes = boxlist.convert("xyzwhd").bbox
+        _, _, _, ws, hs, ds = xywh_boxes.unbind(dim=1)
+        keep = (
+            (ws >= min_size) & (hs >= min_size) & (ds >= min_size)
+        ).nonzero().squeeze(1)
+    else:
+        xywh_boxes = boxlist.convert("xywh").bbox
+        _, _, ws, hs = xywh_boxes.unbind(dim=1)
+        keep = (
+            (ws >= min_size) & (hs >= min_size)
+        ).nonzero().squeeze(1)
     return boxlist[keep]
 
 
