@@ -16,7 +16,7 @@ from fcos_core.data import make_data_loader
 from fcos_core.solver import make_lr_scheduler
 from fcos_core.solver import make_optimizer
 from fcos_core.engine.inference import inference
-from fcos_core.engine.trainer import do_train
+from fcos_core.engine.trainer import do_train, do_evaluate
 from fcos_core.modeling.detector import build_detection_model
 from fcos_core.utils.checkpoint import DetectronCheckpointer
 from fcos_core.utils.collect_env import collect_env_info
@@ -28,7 +28,7 @@ from fcos_core.utils.miscellaneous import mkdir
 from data.abus_data import AbusNpyFormat
 from TBLogger import TBLogger
 
-def train(cfg, local_rank, distributed, tblogger):
+def train(cfg, local_rank, distributed, tblogger, do_test=False):
     model = build_detection_model(cfg)
     device = torch.device(cfg.MODEL.DEVICE)
     model.to(device)
@@ -65,22 +65,22 @@ def train(cfg, local_rank, distributed, tblogger):
 
     data_loader = make_data_loader(
         cfg,
-        is_train=True,
+        is_train=False,
         is_distributed=distributed,
         start_iter=arguments["iteration"],
     )
-
-    do_train(
-        model,
-        data_loader,
-        optimizer,
-        scheduler,
-        checkpointer,
-        device,
-        checkpoint_period,
-        arguments,
-        tblogger
-    )
+    if do_test:
+        do_evaluate(
+            model,
+            data_loader,
+            optimizer,
+            scheduler,
+            checkpointer,
+            device,
+            checkpoint_period,
+            arguments,
+            tblogger
+        )
 
     return model
 
@@ -180,10 +180,7 @@ def main():
     logger.info("Running with config:\n{}".format(cfg))
 
     model = build_detection_model(cfg)
-    model = train(cfg, args.local_rank, args.distributed, tblogger)
-
-    if not args.skip_test:
-        run_test(cfg, model, args.distributed)
+    model = train(cfg, args.local_rank, args.distributed, tblogger, do_test=True)
 
 
 if __name__ == "__main__":

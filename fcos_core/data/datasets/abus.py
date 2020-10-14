@@ -71,7 +71,7 @@ class ABUSDetectionDataset(ImageDetect3DDataset):
 
         masks = None
         keypoints = None
-        return img, target, classes, masks, keypoints
+        return img, target, classes, masks, keypoints, self.abusNpy.getID(index)
 
 
 

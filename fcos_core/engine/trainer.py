@@ -12,7 +12,7 @@ import numpy as np
 from time import gmtime, strftime
 from tqdm import tqdm
 from TBLogger import TBLogger
-
+from .evaluator import Evaluator
 def reduce_loss_dict(loss_dict):
     """
     Reduce the loss dictionary from all processes so that process with rank
@@ -59,9 +59,12 @@ def do_train(
     start_training_time = time.time()
     end = time.time()
     pytorch_1_1_0_or_later = is_pytorch_1_1_0_or_later()
+    if tblogger:
+        tblogger.step = (start_iter // 20) +1
     for iteration, batch_data in tqdm(enumerate(data_loader, start_iter)):
         images = batch_data[0]
         targets = batch_data[1]
+        img_names = batch_data[3]
 
         data_time = time.time() - end
         iteration = iteration + 1
@@ -75,7 +78,7 @@ def do_train(
         #from visualize import visualize
         #visualize(images.tensors[0].cpu().numpy()[0][:, :30, :].astype(np.uint8))
         targets = [target.to(device) for target in targets]
-        loss_dict = model(images, targets)
+        loss_dict = model(images.tensors[0], targets)
         losses = sum(loss for loss in loss_dict.values())
 
         # reduce losses over all GPUs for logging purposes
@@ -141,3 +144,72 @@ def do_train(
             total_time_str, total_training_time / (max_iter)
         )
     )
+
+
+
+
+def do_evaluate(
+    model,
+    data_loader,
+    optimizer,
+    scheduler,
+    checkpointer,
+    device,
+    checkpoint_period,
+    arguments,
+    tblogger
+):
+    print("Start Evaluate {} items".format(len(data_loader)))
+    pytorch_1_1_0_or_later = is_pytorch_1_1_0_or_later()
+    img_size=(640, 160, 640)
+    evaluator = Evaluator(model, showatt=False, pred_result_path='debug_evaluate', box_top_k=50, val_shape=img_size)
+    evaluator.clear_predict_file()
+    start_iter = 0
+    loss_avg = []
+    with torch.no_grad():
+        for iteration, batch_data in tqdm(enumerate(data_loader, start_iter)):
+            images = batch_data[0]
+            targets = batch_data[1]
+            img_names = batch_data[3]
+
+            # in pytorch >= 1.1.0, scheduler.step() should be run after optimizer.step()
+            if not pytorch_1_1_0_or_later:
+                scheduler.step()
+
+            images = images.to(device)
+            targets = [target.to(device) for target in targets]
+            model.train()
+            loss_dict = model(images.tensors[0], targets)
+            losses = sum(loss for loss in loss_dict.values())
+
+            loss_avg.append({k:loss_dict[k].detach().item() for k in loss_dict})
+            model.eval()
+
+            assert len(images.tensors)==1, 'batch_size>1 is not tested'
+            bboxes_prd = evaluator.get_bbox(images.tensors[0], multi_test=False, flip_test=False)
+            evaluator.store_bbox(img_names[0], bboxes_prd)
+
+            # reduce losses over all GPUs for logging purposes
+            loss_dict_reduced = reduce_loss_dict(loss_dict)
+            losses_reduced = sum(loss for loss in loss_dict_reduced.values())
+            if loss_dict_reduced['loss_reg']==0:
+                print("warning loss_reg==0 ! ")
+                continue
+            optimizer.zero_grad()
+
+
+            if pytorch_1_1_0_or_later:
+                scheduler.step()
+
+            print("mean loss_cls", np.mean([_['loss_cls'] for _ in loss_avg]))
+
+            print("mean loss_reg", np.mean([_['loss_reg'] for _ in loss_avg]))
+            print("mean loss_centerness", np.mean([_['loss_centerness'] for _ in loss_avg]))
+
+    print("mean loss_cls", np.mean([_['loss_cls'] for _ in loss_avg]))
+
+    print("mean loss_reg", np.mean([_['loss_reg'] for _ in loss_avg]))
+    print("mean loss_centerness", np.mean([_['loss_centerness'] for _ in loss_avg]))
+    print("evaluate ", len(data_loader),"/", len(loss_avg)," items ")
+
+

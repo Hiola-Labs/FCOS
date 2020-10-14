@@ -60,18 +60,18 @@ class FCOSPostProcessor(torch.nn.Module):
         if len(box_cls.shape)==5:
             is_3D = True
         if is_3D:
-            N, C, W, H, D = box_cls.shape
+            N, C, D, H, W = box_cls.shape
         else:
             N, C, H, W = box_cls.shape
 
 
         if is_3D:
             # put in the same format as locations
-            box_cls = box_cls.view(N, C, W, H, D).permute(0, 2, 3, 4, 1)
+            box_cls = box_cls.view(N, C, D, H, W).permute(0, 2, 3, 4, 1)
             box_cls = box_cls.reshape(N, -1, C).sigmoid()
-            box_regression = box_regression.view(N, 6, W, H, D).permute(0, 2, 3, 4, 1)
+            box_regression = box_regression.view(N, 6, D, H, W).permute(0, 2, 3, 4, 1)
             box_regression = box_regression.reshape(N, -1, 6)
-            centerness = centerness.view(N, 1, W, H, D).permute(0, 2, 3, 4, 1)
+            centerness = centerness.view(N, 1, D, H, W).permute(0, 2, 3, 4, 1)
             centerness = centerness.reshape(N, -1).sigmoid()
 
             candidate_inds = box_cls > self.pre_nms_thresh
@@ -138,7 +138,7 @@ class FCOSPostProcessor(torch.nn.Module):
                 ]
             detections = torch.stack(stack_list, dim=1)
             if is_3D:
-                w, h, d = image_sizes
+                d, h, w = image_sizes[i]
                 boxlist = BoxList(detections, (int(w), int(h), int(d)), mode="xyzxyz")
                 boxlist.add_field("scores", torch.pow(per_box_cls, 1/3.0))
             else:
@@ -187,7 +187,8 @@ class FCOSPostProcessor(torch.nn.Module):
         results = []
         for i in range(num_images):
             # multiclass nms
-            result = boxlist_ml_nms(boxlists[i], self.nms_thresh)
+            #result = boxlist_ml_nms(boxlists[i], self.nms_thresh)
+            result = boxlists[i]
             number_of_detections = len(result)
 
             # Limit to max_per_image detections **over all classes**

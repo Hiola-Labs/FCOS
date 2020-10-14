@@ -50,7 +50,7 @@ def build_dataset(cfg, dataset_list, transforms, dataset_catalog, is_train=True)
             args["crx_fold_num"] = cfg.DATASETS.ABUS_CRX_FOLD_NUM
             args["augmentation"] = cfg.DATASETS.ABUS_AUGMENTATION
             args["include_fp"] = cfg.DATASETS.ABUS_INCLUDE_FP
-            args["crx_partition"] = 'train' if is_train else 'val'
+            #args["crx_partition"] = 'train' if is_train else 'val'
 
         args["transforms"] = transforms
         # make dataset from factory
@@ -185,5 +185,4 @@ def make_data_loader(cfg, is_train=True, is_distributed=False, start_iter=0):
     if is_train:
         # during training, a single (possibly concatenated) data_loader is returned
         assert len(data_loaders) == 1
-        return data_loaders[0]
-    return data_loaders
+    return data_loaders[0]
