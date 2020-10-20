@@ -148,9 +148,10 @@ class Evaluator(object):
             bboxes = np.row_stack(bboxes_list)
         else:
             bboxes = self.__predict(img, self.val_shape, (0, np.inf))
-
-        bboxes = nms(bboxes, self.conf_thresh, self.nms_thresh, self.box_top_k)
-
+        len_before = len(bboxes)
+        bboxes = nms(bboxes, score_threshold=self.conf_thresh, iou_threshold=self.nms_thresh, box_top_k=self.box_top_k)
+        len_after = len(bboxes)
+        print("{} / {} boxes before/after nms".format(len_before, len_after))
         return bboxes
 
     def __predict(self, img, test_shape, valid_scale):

@@ -1,8 +1,9 @@
 # FCOS with improvements
+
 MODEL:
   IS_3D: 1
   META_ARCHITECTURE: "GeneralizedRCNN"
-  WEIGHT: None #"catalog://ImageNetPretrained/MSRA/R-50"
+  WEIGHT: None #trainlog/fcos_imprv_R_50_FPN_1x_ABUS_640All_Ch64_128_Fd1/model_0027500.pth #"catalog://ImageNetPretrained/MSRA/R-50"
   RPN_ONLY: True
   FCOS_ON: True
   BACKBONE:
@@ -25,12 +26,14 @@ MODEL:
     # Please refer to https://github.com/yqyao/FCOS_PLUS
     CENTER_SAMPLING_RADIUS: 0.0
     IOU_LOSS_TYPE: "linear_iou"
+    INFERENCE_TH: 1e-3
+    PRE_NMS_TOP_N: 1000
 DATASETS:
   TRAIN: ("ABUS_train",) #coco_2014_minival ABUS_train
   TEST: ("ABUS_val",) #coco_2014_minival ABUS_val
 
   ABUS_ENABLE_CV: True
-  ABUS_CRX_FOLD_NUM: 0
+  ABUS_CRX_FOLD_NUM: 2
   ABUS_AUGMENTATION: True
   ABUS_INCLUDE_FP: False
 
@@ -40,17 +43,21 @@ INPUT:
   MIN_SIZE_TEST: 160
   MAX_SIZE_TEST: 640
   TRANSFORM_RESIZE: True
-  TRANSFORM_FLIP: True
+  TRANSFORM_FLIP: False
   TRANSFORM_NORMALIZE: False
+  TEST_IMG_BBOX_ORIGINAL_SIZE: 640
 
 DATALOADER:
   SIZE_DIVISIBILITY: 32
 SOLVER:
   BASE_LR: 0.0025
   WEIGHT_DECAY: 0.0001
-  STEPS: (240000, 320000)
-  MAX_ITER: 360000
+  STEPS: (12500, 25000)
+  MAX_ITER: 120000
   IMS_PER_BATCH: 1
   WARMUP_METHOD: "constant"
+TEST:
+  IMS_PER_BATCH: 1
+  DETECTIONS_PER_IMG: 50
 #export CUDA_VISIBLE_DEVICES=0 && python tools/train_net.py --config-file configs/fcos/fcos_imprv_R_50_FPN_1x.yaml --logdir ./logs/ --exp_name ABUS_d100_320 DATALOADER.NUM_WORKERS 4 OUTPUT_DIR trainlog/fcos_imprv_R_50_FPN_1x_ABUS_d100_320
 #export CUDA_VISIBLE_DEVICES=1 && python tools/train_net.py --config-file configs/fcos/fcos_imprv_R_50_FPN_1x.yaml --logdir ./logs/ --exp_name ABUS_d100_640 DATALOADER.NUM_WORKERS 4 OUTPUT_DIR trainlog/fcos_imprv_R_50_FPN_1x_ABUS_d100_640

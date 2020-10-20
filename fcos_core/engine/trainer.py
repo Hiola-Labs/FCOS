@@ -157,12 +157,13 @@ def do_evaluate(
     device,
     checkpoint_period,
     arguments,
-    tblogger
+    tblogger,
+    cfg
 ):
     print("Start Evaluate {} items".format(len(data_loader)))
     pytorch_1_1_0_or_later = is_pytorch_1_1_0_or_later()
     img_size=(640, 160, 640)
-    evaluator = Evaluator(model, showatt=False, pred_result_path='debug_evaluate', box_top_k=50, val_shape=img_size)
+    evaluator = Evaluator(model, showatt=False, pred_result_path='debug_evaluate', box_top_k=500, val_shape=img_size)
     evaluator.clear_predict_file()
     start_iter = 0
     loss_avg = []
@@ -187,7 +188,16 @@ def do_evaluate(
 
             assert len(images.tensors)==1, 'batch_size>1 is not tested'
             bboxes_prd = evaluator.get_bbox(images.tensors[0], multi_test=False, flip_test=False)
-            evaluator.store_bbox(img_names[0], bboxes_prd)
+            if len(bboxes_prd) > 0:
+                bboxes_prd[:, :6] = (bboxes_prd[:, :6] / images.tensors[0].size(1)) * cfg['INPUT']['TEST_IMG_BBOX_ORIGINAL_SIZE']
+            #xyz to zyx
+            bboxes_prd_zyx = bboxes_prd+0.0
+            bboxes_prd_zyx[..., 0] = bboxes_prd[..., 2]
+            bboxes_prd_zyx[..., 3] = bboxes_prd[..., 5]
+            bboxes_prd_zyx[..., 2] = bboxes_prd[..., 0]
+            bboxes_prd_zyx[..., 5] = bboxes_prd[..., 3]
+            print(" len (bboxes_prd_zyx) : ", len(bboxes_prd_zyx))
+            evaluator.store_bbox(img_names[0], bboxes_prd_zyx)
 
             # reduce losses over all GPUs for logging purposes
             loss_dict_reduced = reduce_loss_dict(loss_dict)

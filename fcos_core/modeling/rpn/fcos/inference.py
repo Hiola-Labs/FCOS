@@ -173,36 +173,7 @@ class FCOSPostProcessor(torch.nn.Module):
 
         boxlists = list(zip(*sampled_boxes))
         boxlists = [cat_boxlist(boxlist) for boxlist in boxlists]
-        if not self.bbox_aug_enabled:
-            boxlists = self.select_over_all_levels(boxlists)
-
         return boxlists
-
-    # TODO very similar to filter_results from PostProcessor
-    # but filter_results is per image
-    # TODO Yang: solve this issue in the future. No good solution
-    # right now.
-    def select_over_all_levels(self, boxlists):
-        num_images = len(boxlists)
-        results = []
-        for i in range(num_images):
-            # multiclass nms
-            #result = boxlist_ml_nms(boxlists[i], self.nms_thresh)
-            result = boxlists[i]
-            number_of_detections = len(result)
-
-            # Limit to max_per_image detections **over all classes**
-            if number_of_detections > self.fpn_post_nms_top_n > 0:
-                cls_scores = result.get_field("scores")
-                image_thresh, _ = torch.kthvalue(
-                    cls_scores.cpu(),
-                    number_of_detections - self.fpn_post_nms_top_n + 1
-                )
-                keep = cls_scores >= image_thresh.item()
-                keep = torch.nonzero(keep).squeeze(1)
-                result = result[keep]
-            results.append(result)
-        return results
 
 
 def make_fcos_postprocessor(config):

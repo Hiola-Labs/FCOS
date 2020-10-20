@@ -79,7 +79,8 @@ def train(cfg, local_rank, distributed, tblogger, do_test=False):
             device,
             checkpoint_period,
             arguments,
-            tblogger
+            tblogger,
+            cfg
         )
 
     return model

@@ -20,12 +20,14 @@
             "name": "FCOS_Test",
             "type": "python",
             "request": "launch",
-            "program": "tools/test_net.py",
+            "program": "tools/test_net2.py",
             "console": "integratedTerminal",
             "args":["--config-file", "configs/fcos/fcos_imprv_R_50_FPN_1x.yaml",
-                "DATALOADER.NUM_WORKERS", "1",
-                "MODEL.WEIGHT", "FCOS_imprv_R_50_FPN_1x.pth",
-                "TEST.IMS_PER_BATCH", "4"]
+                "--logdir", "./logs/",
+                "--exp_name", "debug",
+                "DATALOADER.NUM_WORKERS", "0",
+                "OUTPUT_DIR", "training_dir/fcos_imprv_R_50_FPN_1x"],
+            "env":{"CUDA_VISIBLE_DEVICES":"0"},
         },
         {
             "name": "FCOS_CurrentFile",
