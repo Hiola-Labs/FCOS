@@ -9,9 +9,8 @@ from fcos_core.utils.env import setup_environment  # noqa F401 isort:skip
 
 import argparse
 import os
-
-import torch
 from fcos_core.config import cfg
+import torch
 from fcos_core.data import make_data_loader
 from fcos_core.solver import make_lr_scheduler
 from fcos_core.solver import make_optimizer
@@ -27,7 +26,7 @@ from fcos_core.utils.logger import setup_logger
 from fcos_core.utils.miscellaneous import mkdir
 from data.abus_data import AbusNpyFormat
 from TBLogger import TBLogger
-
+from froc import calculate_FROC
 def train(cfg, local_rank, distributed, tblogger, do_test=False):
     model = build_detection_model(cfg)
     device = torch.device(cfg.MODEL.DEVICE)
@@ -118,7 +117,7 @@ def run_test(cfg, model, distributed):
         synchronize()
 
 
-def main():
+def froc_test(weight_file, fold_num):
     parser = argparse.ArgumentParser(description="PyTorch Object Detection Training")
     parser.add_argument(
         "--config-file",
@@ -158,9 +157,11 @@ def main():
             backend="nccl", init_method="env://"
         )
         synchronize()
-
+    cfg.defrost()
     cfg.merge_from_file(args.config_file)
     cfg.merge_from_list(args.opts)
+    cfg.MODEL.WEIGHT = weight_file
+    cfg.DATASETS.ABUS_CRX_FOLD_NUM = fold_num
     cfg.freeze()
 
     output_dir = cfg.OUTPUT_DIR
@@ -183,6 +184,23 @@ def main():
     model = build_detection_model(cfg)
     model = train(cfg, args.local_rank, args.distributed, tblogger, do_test=True)
 
+    npy_dir = 'debug_evaluate'
+    npy_format = npy_dir + '/{}_0.npy'
+    data_root = 'datasets/abus'
+    area_small, area_big, plt = calculate_FROC(data_root, npy_dir, npy_format, size_threshold=0, th_step=0.003, logger=logger)
+    plt.savefig('froc_test.png')
+    with open('froc_test_log', 'a+') as ff:
+        msg = '[\'{}\', {}, {}]\n'.format(cfg.MODEL.WEIGHT, area_small, area_big)
+        ff.write(msg)
+        ff.close()
+    logger.info("evaluation result:" + msg)
 
 if __name__ == "__main__":
-    main()
+
+    for fold_k in ['1', '2', '3', ]:
+        iter_list = ["{0:07d}".format(i) for i in range(0, 80000, 2500)]
+        weight_list = ['trainlog/fcos_imprv_R_50_FPN_1x_ABUS_640All_Ch64_128_Fd' + fold_k + '/model_' + iter_num + '.pth'
+                        for iter_num in iter_list]
+        for wf in weight_list:
+            if os.path.exists(wf):
+                froc_test(wf, fold_num=int(fold_k))

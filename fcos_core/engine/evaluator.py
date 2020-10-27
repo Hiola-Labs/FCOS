@@ -96,7 +96,6 @@ def nms(bboxes, score_threshold, iou_threshold, sigma=0.3, method='nms', box_top
             cls_bboxes = cls_bboxes[score_mask]
     best_bboxes = np.array(best_bboxes)
     top_k_bboxes = []
-    print(len(best_bboxes), " bboxes after nms")
     min_conf = -1
     for i in range(min(len(best_bboxes), box_top_k)):
         max_ind = np.argmax(best_bboxes[:, -2])
@@ -105,11 +104,10 @@ def nms(bboxes, score_threshold, iou_threshold, sigma=0.3, method='nms', box_top
         best_bboxes = np.concatenate([best_bboxes[: max_ind], best_bboxes[max_ind + 1:]])
         if min_conf==-1 or min_conf>best_bbox[-2]:
             min_conf=best_bbox[-2]
-    print("min confidence in top ", len(top_k_bboxes), " boxes:" , min_conf)
     return np.array(top_k_bboxes)
 
 class Evaluator(object):
-    def __init__(self, model, showatt, pred_result_path, box_top_k, val_shape, CONF_THRESH=0.000001, NMS_THRESH=0.45):
+    def __init__(self, model, showatt, pred_result_path, box_top_k, val_shape, CONF_THRESH=0.000001, NMS_THRESH=0.45, logger=None):
         self.classes = 2
         self.pred_result_path = pred_result_path
 
@@ -124,7 +122,7 @@ class Evaluator(object):
         self.conf_thresh = CONF_THRESH
         self.nms_thresh = NMS_THRESH
         self.box_top_k = box_top_k
-
+        self.logger = logger
 
     def store_bbox(self, img_ind, bboxes_prd):
         #'/data/bruce/CenterNet_ABUS/results/prediction/new_CASE_SR_Li^Ling_1073_201902211146_1.3.6.1.4.1.47779.1.002.npy'
@@ -151,7 +149,9 @@ class Evaluator(object):
         len_before = len(bboxes)
         bboxes = nms(bboxes, score_threshold=self.conf_thresh, iou_threshold=self.nms_thresh, box_top_k=self.box_top_k)
         len_after = len(bboxes)
-        print("{} / {} boxes before/after nms".format(len_before, len_after))
+        if self.logger:
+            self.logger.info("{} / {} boxes before/after nms".format(len_before, len_after))
+
         return bboxes
 
     def __predict(self, img, test_shape, valid_scale):

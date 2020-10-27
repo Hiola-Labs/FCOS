@@ -160,10 +160,11 @@ def do_evaluate(
     tblogger,
     cfg
 ):
-    print("Start Evaluate {} items".format(len(data_loader)))
+    logger = logging.getLogger("fcos_core.trainer")
+    logger.info("Start Evaluate {} items".format(len(data_loader)))
     pytorch_1_1_0_or_later = is_pytorch_1_1_0_or_later()
     img_size=(640, 160, 640)
-    evaluator = Evaluator(model, showatt=False, pred_result_path='debug_evaluate', box_top_k=500, val_shape=img_size)
+    evaluator = Evaluator(model, showatt=False, pred_result_path='debug_evaluate', box_top_k=500, val_shape=img_size, logger=logger)
     evaluator.clear_predict_file()
     start_iter = 0
     loss_avg = []
@@ -196,14 +197,14 @@ def do_evaluate(
             bboxes_prd_zyx[..., 3] = bboxes_prd[..., 5]
             bboxes_prd_zyx[..., 2] = bboxes_prd[..., 0]
             bboxes_prd_zyx[..., 5] = bboxes_prd[..., 3]
-            print(" len (bboxes_prd_zyx) : ", len(bboxes_prd_zyx))
+            logger.info(" len(bboxes_prd_zyx) : {}".format(len(bboxes_prd_zyx)))
             evaluator.store_bbox(img_names[0], bboxes_prd_zyx)
 
             # reduce losses over all GPUs for logging purposes
             loss_dict_reduced = reduce_loss_dict(loss_dict)
             losses_reduced = sum(loss for loss in loss_dict_reduced.values())
             if loss_dict_reduced['loss_reg']==0:
-                print("warning loss_reg==0 ! ")
+                logger.warning("warning loss_reg==0")
                 continue
             optimizer.zero_grad()
 
@@ -211,15 +212,9 @@ def do_evaluate(
             if pytorch_1_1_0_or_later:
                 scheduler.step()
 
-            print("mean loss_cls", np.mean([_['loss_cls'] for _ in loss_avg]))
-
-            print("mean loss_reg", np.mean([_['loss_reg'] for _ in loss_avg]))
-            print("mean loss_centerness", np.mean([_['loss_centerness'] for _ in loss_avg]))
-
-    print("mean loss_cls", np.mean([_['loss_cls'] for _ in loss_avg]))
-
-    print("mean loss_reg", np.mean([_['loss_reg'] for _ in loss_avg]))
-    print("mean loss_centerness", np.mean([_['loss_centerness'] for _ in loss_avg]))
-    print("evaluate ", len(data_loader),"/", len(loss_avg)," items ")
+    logger.info("mean loss_cls {}".format(np.mean([_['loss_cls'] for _ in loss_avg])))
+    logger.info("mean loss_reg {}".format(np.mean([_['loss_reg'] for _ in loss_avg])))
+    logger.info("mean loss_centerness {}".format(np.mean([_['loss_centerness'] for _ in loss_avg])))
+    logger.info("evaluate  {} / {} items".format(len(data_loader), len(loss_avg)))
 
 
