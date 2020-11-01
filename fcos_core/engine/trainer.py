@@ -49,8 +49,6 @@ def do_train(
     tblogger
 ):
     logger = logging.getLogger("fcos_core.trainer")
-    #handler = logging.FileHandler("training_log_{}.log".format(strftime("%Y_%m_%d_%H_%M_%S", gmtime())))
-    #logger.addHandler(handler)
     logger.info("Start training")
     meters = MetricLogger(delimiter="  ")
     max_iter = len(data_loader)
@@ -164,8 +162,6 @@ def do_evaluate(
     logger.info("Start Evaluate {} items".format(len(data_loader)))
     pytorch_1_1_0_or_later = is_pytorch_1_1_0_or_later()
     img_size=(640, 160, 640)
-
-
     npy_dir = 'debug_evaluate_' + cfg.MODEL.WEIGHT.replace(".", "_")
     evaluator = Evaluator(model, showatt=False, pred_result_path=npy_dir, box_top_k=500, val_shape=img_size, logger=logger)
     evaluator.clear_predict_file()
