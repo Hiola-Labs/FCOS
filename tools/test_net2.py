@@ -6,7 +6,7 @@ Basic training script for PyTorch
 # Set up custom environment before nearly anything else is imported
 # NOTE: this should be the first import (no not reorder)
 from fcos_core.utils.env import setup_environment  # noqa F401 isort:skip
-
+import logging
 import argparse
 import logging
 import os
@@ -29,6 +29,8 @@ from data.abus_data import AbusNpyFormat
 from TBLogger import TBLogger
 from froc import calculate_FROC
 import numpy as np
+from shutil import copyfile
+import shutil
 def train(cfg, local_rank, distributed, tblogger, do_test=False):
     model = build_detection_model(cfg)
     device = torch.device(cfg.MODEL.DEVICE)
@@ -149,7 +151,79 @@ def froc_test(cfg, args, tblogger, weight_file, fold_num):
         ff.close()
     logger.info("evaluation result:" + msg)
 
+
+def merge_npy_files():
+    merge_root = "debug_evaluate_trainlog/"
+    merge_list = [
+        ("fcos_imprv_R_50_FPN_1x_ABUS_640All_Ch64_128_Fd0/model_0012500_pth", 0),
+        ("fcos_imprv_R_50_FPN_1x_ABUS_640All_Ch64_128_Fd1/model_0025000_pth", 1),
+        ("fcos_imprv_R_50_FPN_1x_ABUS_640All_Ch64_128_Fd2/model_0032500_pth", 2),
+        ("fcos_imprv_R_50_FPN_1x_ABUS_640All_Ch64_128_Fd3/model_0060000_pth", 3),
+        ("fcos_imprv_R_50_FPN_1x_ABUS_640All_Ch64_128_Fd4/model_0015000_pth", 4),
+    ]
+    self_root = 'datasets/abus/'
+    if 0:
+        folder_merge_npy = "/data/bruce/FCOS_3D/FCOS/merge_npy/"
+        if os.path.exists(folder_merge_npy):
+            shutil.rmtree(folder_merge_npy)
+        os.mkdir(folder_merge_npy)
+    merge_list = [(merge_root + a, b) for a, b in merge_list]
+    for npy_dir, crx_fold_num in merge_list:
+
+        with open(self_root + 'annotations/rand_all.txt', 'r') as f:
+            lines = f.read().splitlines()
+
+        folds = []
+        self_gt = []
+        for fi in range(5):
+            if fi == 4:
+                folds.append(lines[int(fi*0.2*len(lines)):])
+            else:
+                folds.append(lines[int(fi*0.2*len(lines)):int((fi+1)*0.2*len(lines))])
+        cut_set = folds.pop(crx_fold_num)
+        self_gt = cut_set
+        total_big = 0
+        total_small = 0
+        for line in self_gt:
+            line = line.split(',', 4)
+            # Always use 640,160,640 to compute iou
+            size = (640,160,640)
+            scale = (size[0]/int(line[1]),size[1]/int(line[2]),size[2]/int(line[3]))
+
+            boxes = line[-1].split(' ')
+            boxes = list(map(lambda box: box.split(','), boxes))
+            true_box = [list(map(float, box)) for box in boxes]
+            true_box_s = []
+            # For the npy volume (after interpolation by spacing), 4px = 1mm
+            for li in true_box:
+                axis = [0,0,0]
+                axis[0] = (li[3] - li[0]) / 4
+                axis[1] = (li[4] - li[1]) / 4
+                axis[2] = (li[5] - li[2]) / 4
+                if axis[0] < 10 and axis[1] < 10 and axis[2] < 10:
+                    true_box_s.append(li)
+
+            total_big+=len(true_box)
+            total_small+=len(true_box_s)
+        print("crx_fold_num:", crx_fold_num, "total_big:", total_big, "total_small:", total_small)
+
+
+        if 0:
+            num_npy = os.listdir(npy_dir) # dir is your directory path
+            for line in self_gt:
+                npy_id = line.split(",")[0]
+                npy_id = npy_id.replace("/", "_")
+                copyfile(npy_dir + '/' + npy_id + '_0.npy', folder_merge_npy + npy_id + '_0.npy')
+            #folder_merge_npy
+    if 0:
+        npy_dir = folder_merge_npy
+        npy_format = npy_dir + '/{}_0.npy'
+        data_root = 'datasets/abus'
+        logger = logging.getLogger("fcos_core")
+        area_small, area_big, plt = calculate_FROC(data_root, npy_dir, npy_format, size_threshold=0, th_step=0.003, logger=logger)
+    return 0
 if __name__ == "__main__":
+
     parser = argparse.ArgumentParser(description="PyTorch Object Detection Training")
     parser.add_argument(
         "--config-file",
@@ -199,21 +273,13 @@ if __name__ == "__main__":
     if output_dir:
         mkdir(output_dir)
 
+    merge_npy_files()
+    exit()
+
     logger.info("Using {} GPUs".format(num_gpus))
     logger.info(args)
 
-    """
-
-    a = '/home/lab402/p08922003/FCOS/froc_Fd1_model_0025000_Size_filter0_debug.npy'
-    b = '/home/lab402/p08922003/FCOS/froc_Fd1_model_0025000_Size_filter0.npy'
-    c = '/home/lab402/p08922003/FCOS/froc_Fd1_model_0025000_Size_filter20.npy'
-    a, b, c = np.load(a), np.load(b), np.load(c)
-    for i in range(79):
-        print("{} {} {} {}".format(i, a[..., 7][i], b[..., 7][i], c[..., 7][i]))
-
-    """
-
-    for fold_k in ['1', '3', ]:
+    for fold_k, fold_num in [('1B', 1), ('0', 0), ('2', 2), ('4', 4)]:
         iter_list = ["{0:07d}".format(i) for i in range(0, 80000, 2500)]
 
         weight_list = ['trainlog/fcos_imprv_R_50_FPN_1x_ABUS_640All_Ch64_128_Fd' + fold_k + '/model_' + iter_num + '.pth'
