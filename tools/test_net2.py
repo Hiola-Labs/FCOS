@@ -8,6 +8,7 @@ Basic training script for PyTorch
 from fcos_core.utils.env import setup_environment  # noqa F401 isort:skip
 
 import argparse
+import logging
 import os
 from fcos_core.config import cfg
 import torch
@@ -27,6 +28,7 @@ from fcos_core.utils.miscellaneous import mkdir
 from data.abus_data import AbusNpyFormat
 from TBLogger import TBLogger
 from froc import calculate_FROC
+import numpy as np
 def train(cfg, local_rank, distributed, tblogger, do_test=False):
     model = build_detection_model(cfg)
     device = torch.device(cfg.MODEL.DEVICE)
@@ -117,7 +119,37 @@ def run_test(cfg, model, distributed):
         synchronize()
 
 
-def froc_test(weight_file, fold_num):
+def froc_test(cfg, args, tblogger, weight_file, fold_num):
+    logger = logging.getLogger("fcos_core")
+
+    cfg.defrost()
+    cfg.MODEL.WEIGHT = weight_file
+    cfg.DATASETS.ABUS_CRX_FOLD_NUM = fold_num
+    cfg.freeze()
+
+    logger.info("Collecting env info (might take some time)")
+    logger.info("\n" + collect_env_info())
+    logger.info("Loaded configuration file {}".format(args.config_file))
+    with open(args.config_file, "r") as cf:
+        config_str = "\n" + cf.read()
+        logger.info(config_str)
+    logger.info("Running with config:\n{}".format(cfg))
+
+    model = build_detection_model(cfg)
+    model = train(cfg, args.local_rank, args.distributed, tblogger, do_test=True)
+
+    npy_dir = 'debug_evaluate_' + weight_file.replace(".", "_")
+    npy_format = npy_dir + '/{}_0.npy'
+    data_root = 'datasets/abus'
+    area_small, area_big, plt = calculate_FROC(data_root, npy_dir, npy_format, size_threshold=0, th_step=0.003, logger=logger)
+    plt.savefig('froc_test.png')
+    with open('froc_test_log', 'a+') as ff:
+        msg = '[\'{}\', {}, {}]\n'.format(cfg.MODEL.WEIGHT, area_small, area_big)
+        ff.write(msg)
+        ff.close()
+    logger.info("evaluation result:" + msg)
+
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="PyTorch Object Detection Training")
     parser.add_argument(
         "--config-file",
@@ -157,50 +189,59 @@ def froc_test(weight_file, fold_num):
             backend="nccl", init_method="env://"
         )
         synchronize()
-    cfg.defrost()
+
     cfg.merge_from_file(args.config_file)
     cfg.merge_from_list(args.opts)
-    cfg.MODEL.WEIGHT = weight_file
-    cfg.DATASETS.ABUS_CRX_FOLD_NUM = fold_num
-    cfg.freeze()
+
 
     output_dir = cfg.OUTPUT_DIR
+    logger = setup_logger("fcos_core", output_dir, get_rank())
     if output_dir:
         mkdir(output_dir)
 
-    logger = setup_logger("fcos_core", output_dir, get_rank())
     logger.info("Using {} GPUs".format(num_gpus))
     logger.info(args)
 
-    logger.info("Collecting env info (might take some time)")
-    logger.info("\n" + collect_env_info())
+    """
 
-    logger.info("Loaded configuration file {}".format(args.config_file))
-    with open(args.config_file, "r") as cf:
-        config_str = "\n" + cf.read()
-        logger.info(config_str)
-    logger.info("Running with config:\n{}".format(cfg))
+    a = '/home/lab402/p08922003/FCOS/froc_Fd1_model_0025000_Size_filter0_debug.npy'
+    b = '/home/lab402/p08922003/FCOS/froc_Fd1_model_0025000_Size_filter0.npy'
+    c = '/home/lab402/p08922003/FCOS/froc_Fd1_model_0025000_Size_filter20.npy'
+    a, b, c = np.load(a), np.load(b), np.load(c)
+    for i in range(79):
+        print("{} {} {} {}".format(i, a[..., 7][i], b[..., 7][i], c[..., 7][i]))
 
-    model = build_detection_model(cfg)
-    model = train(cfg, args.local_rank, args.distributed, tblogger, do_test=True)
+    """
 
-    npy_dir = 'debug_evaluate'
-    npy_format = npy_dir + '/{}_0.npy'
-    data_root = 'datasets/abus'
-    area_small, area_big, plt = calculate_FROC(data_root, npy_dir, npy_format, size_threshold=0, th_step=0.003, logger=logger)
-    plt.savefig('froc_test.png')
-    with open('froc_test_log', 'a+') as ff:
-        msg = '[\'{}\', {}, {}]\n'.format(cfg.MODEL.WEIGHT, area_small, area_big)
-        ff.write(msg)
-        ff.close()
-    logger.info("evaluation result:" + msg)
-
-if __name__ == "__main__":
-
-    for fold_k in ['1', '2', '3', ]:
+    for fold_k in ['1', '3', ]:
         iter_list = ["{0:07d}".format(i) for i in range(0, 80000, 2500)]
+
         weight_list = ['trainlog/fcos_imprv_R_50_FPN_1x_ABUS_640All_Ch64_128_Fd' + fold_k + '/model_' + iter_num + '.pth'
                         for iter_num in iter_list]
         for wf in weight_list:
             if os.path.exists(wf):
-                froc_test(wf, fold_num=int(fold_k))
+                froc_test(cfg, args, tblogger, wf, fold_num=int(fold_k))
+
+def fast_FP_sen_calculation(bboxes):
+    bboxes = bboxes_sort_by_score_desc(bboxes)
+    bboxes = tag_bboxes_is_TP_or_FP_or_FN(bboxes)
+    TP = 0
+    FP = 0
+    FN = 0
+    #from score threshold high to low
+    for i in range(len(bboxes)):
+        bbox = bboxes[i]
+        score_threshold = bbox['score']
+        if bbox is TP:
+            TP+=1
+        elif bbox is FP:
+            FP+=1
+        elif bbox is FN:
+            FN+=1
+        sensitivity = 0
+        precision = 0
+
+    #some threshold is FP free, only TP increases
+    result = get_max_sensitivity_group_by_FP(result)
+
+    return 0

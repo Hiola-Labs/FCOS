@@ -67,7 +67,7 @@ def calculate_FROC(root, npy_dir, npy_format, size_threshold=0, th_step=0.05, lo
     out_boxes_cache = {}
     true_box_cache = {}
 
-    logger.info('size_threshold = {:.3f}'.format(size_threshold))
+    logger.info('total_pass= {} size_threshold = {:.3f}'.format(total_pass, size_threshold))
     with open(os.path.join(root, 'annotations/rand_all.txt'), 'r') as f:
         rand_all_lines = f.read().splitlines()
     for i, score_hit_thre in enumerate(all_thre):
@@ -94,7 +94,6 @@ def calculate_FROC(root, npy_dir, npy_format, size_threshold=0, th_step=0.05, lo
                 continue
 
             current_pass += 1
-            logger.info('Processing {}/{} data...'.format(current_pass, total_pass))
             if current_pass == total_pass:
                 logger.info("\n")
             if not pred_npy in true_box_cache:

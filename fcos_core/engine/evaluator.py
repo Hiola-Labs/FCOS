@@ -7,6 +7,7 @@ import torch.nn.functional as F
 import os
 import numpy as np
 import torch
+import pathlib
 #from eval import voc_eval
 #from utils.data_augment import *
 #from utils.tools import *
@@ -123,6 +124,8 @@ class Evaluator(object):
         self.nms_thresh = NMS_THRESH
         self.box_top_k = box_top_k
         self.logger = logger
+
+        pathlib.Path(self.pred_result_path).mkdir(parents=True, exist_ok=True)
 
     def store_bbox(self, img_ind, bboxes_prd):
         #'/data/bruce/CenterNet_ABUS/results/prediction/new_CASE_SR_Li^Ling_1073_201902211146_1.3.6.1.4.1.47779.1.002.npy'
